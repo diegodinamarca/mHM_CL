@@ -1,4 +1,27 @@
-preprocess_climate_data <- function(domain_path, remove_temp = TRUE, 
+#' Preprocess climate forcing data
+#'
+#' This function crops, resamples and writes meteorological variables to the
+#' mHM domain defined in `preprocess_config.json`.
+#'
+#' @param domain_path Path to the domain folder containing the configuration
+#'   file.
+#' @param remove_temp Logical. Remove temporary files when finished.
+#' @param large.raster Logical. Use chunked NetCDF writing for large rasters.
+#' @param batch_size Number of layers per batch when `large.raster` is `TRUE`.
+#' @param units Units attribute for the output NetCDF variable.
+#' @param longname Long name attribute for the output variable.
+#' @param time_origin Origin for the NetCDF time dimension.
+#' @param missval Missing value in the output NetCDF.
+#' @param prec Precision used when writing the NetCDF file.
+#' @param fix.negatives Logical. Clamp negative values to zero.
+#' @param iter_num Number of focal iterations to fill gaps.
+#'
+#' @return Invisibly returns `NULL`. The processed NetCDF files are written to
+#'   disk.
+#'
+#' @examples
+#' preprocess_climate_data("/path/to/domain")
+preprocess_climate_data <- function(domain_path, remove_temp = TRUE,
                                     large.raster = FALSE,
                                     batch_size = 4000,
                                     units = "",
@@ -12,6 +35,22 @@ preprocess_climate_data <- function(domain_path, remove_temp = TRUE,
   library(terra)
   library(sf)
   library(magrittr)
+#' Write a Raster object to NetCDF in batches
+#'
+#' Helper used internally by `preprocess_climate_data` to avoid memory issues
+#' when exporting large rasters.
+#'
+#' @param rast A [`terra::rast`] object to write.
+#' @param filename Output NetCDF file name.
+#' @param varname Name of the variable in the NetCDF file.
+#' @param batch_size Number of layers per write batch.
+#' @param units Units attribute of the variable.
+#' @param longname Long name attribute of the variable.
+#' @param time_origin Origin for the NetCDF time dimension.
+#' @param missval Missing value used in the file.
+#' @param prec Precision used when writing the file.
+#' @param fix.negatives Logical. Replace negative values with zero.
+#' @keywords internal
   write_large_raster_to_netcdf <- function(rast, filename, varname,
                                           batch_size,
                                           units,
@@ -191,7 +230,19 @@ preprocess_climate_data <- function(domain_path, remove_temp = TRUE,
     cat("🗑️ Removed temp folder:", temp_folder, "\n")
   }
 }
-
+#' Preprocess Leaf Area Index (LAI) data
+#'
+#' Resamples and fills gaps in the monthly LAI climatology defined in the
+#' configuration file.
+#'
+#' @param domain_path Path to the domain folder.
+#' @param remove_temp Logical. Remove temporary files on exit.
+#' @param iter_num Number of iterations for gap filling.
+#'
+#' @return Path to the generated NetCDF file is printed to the console.
+#'
+#' @examples
+#' preprocess_LAI_data("/path/to/domain")
 preprocess_LAI_data = function(domain_path, remove_temp = FALSE, iter_num = 10){
   library(terra)
   library(sf)
@@ -262,7 +313,16 @@ preprocess_LAI_data = function(domain_path, remove_temp = FALSE, iter_num = 10){
     cat("🗑️ Removed temp folder:", temp_folder, "\n")
   }
 }
-
+#' Preprocess Digital Elevation Model (DEM)
+#'
+#' Clips, resamples and derives slope, aspect and flow direction rasters using
+#' `whitebox` utilities.
+#'
+#' @param domain_path Path to the domain folder.
+#' @param remove_temp Logical. Remove temporary files once processing finishes.
+#'
+#' @examples
+#' preprocess_dem_data("/path/to/domain")
 preprocess_dem_data<- function(domain_path, remove_temp = FALSE) {
   library(tidyverse)
   library(terra)
@@ -355,7 +415,16 @@ preprocess_dem_data<- function(domain_path, remove_temp = FALSE) {
     cat("🗑️ Removed temp folder:", temp_folder, "\n")
   }
 }
-
+#' Preprocess land cover data
+#'
+#' Clips, reclassifies and resamples a land cover raster to the modelling grid
+#' defined for the domain.
+#'
+#' @param domain_path Path to the domain folder.
+#' @param remove_temp Logical. Remove temporary files after processing.
+#'
+#' @examples
+#' preprocess_lc_data("/path/to/domain")
 preprocess_lc_data = function(domain_path, remove_temp = FALSE){
   library(tidyverse)
   library(terra)
@@ -437,7 +506,17 @@ preprocess_lc_data = function(domain_path, remove_temp = FALSE){
   }
 }
 
-
+#' Preprocess geology data
+#'
+#' Generates a geology raster for mHM either from a local shapefile or from the
+#' global GLiM dataset.
+#'
+#' @param domain_path Path to the domain folder.
+#' @param remove_temp Logical. Remove temporary files when done.
+#' @param source.file Use "local" shapefile or "global" GLiM data.
+#'
+#' @examples
+#' preprocess_geo_data("/path/to/domain")
 preprocess_geo_data <- function(domain_path, remove_temp = FALSE, source.file = "local") {
   library(tidyverse)
   library(terra)
@@ -571,7 +650,17 @@ preprocess_geo_data <- function(domain_path, remove_temp = FALSE, source.file = 
     cat("🗑️ Removed temp folder:", temp_folder, "\n")
   }
 }
-
+#' Preprocess soil property maps
+#'
+#' Aggregates soil bulk density, clay and sand fractions into classes used by
+#' mHM.
+#'
+#' @param domain_path Path to the domain folder.
+#' @param remove_temp Logical. Remove temporary files once finished.
+#' @param iter_num Number of iterations for spatial gap filling.
+#'
+#' @examples
+#' preprocess_soil_data("/path/to/domain")
 preprocess_soil_data = function(domain_path, remove_temp = FALSE, iter_num = 10){
   library(tidyverse)
   library(terra)
@@ -599,6 +688,11 @@ preprocess_soil_data = function(domain_path, remove_temp = FALSE, iter_num = 10)
   ref = rast(ref_file)
   res(ref) = cellsize
   # refernce morph data
+#' Reproject a raster to the domain morphology grid
+#'
+#' @param r A [`terra::rast`] object.
+#' @return Raster resampled to the reference grid.
+#' @keywords internal
   reproject_to_mhm_morph <- function(r) {
     r = crop(r, roi_buff)
     # r = crop(r, ref)
@@ -613,8 +707,14 @@ preprocess_soil_data = function(domain_path, remove_temp = FALSE, iter_num = 10)
   bulkd_r = reproject_to_mhm_morph(rast(bulkd_files))
   clay_r = reproject_to_mhm_morph(rast(clay_files))
   sand_r = reproject_to_mhm_morph(rast(sand_files))
-  
-  
+
+
+#' Repeat a focal mean filter
+#'
+#' @param r A [`terra::rast`] object.
+#' @param n Number of iterations.
+#' @return Raster with gaps filled.
+#' @keywords internal
   focal_repeat = function(r, n){
     if (n != 0){
       r = terra::focal(x = r, w = 3, fun = "mean", na.rm = TRUE, na.policy = "only")
@@ -642,8 +742,14 @@ preprocess_soil_data = function(domain_path, remove_temp = FALSE, iter_num = 10)
   depths = c("0-5cm","5-15cm","15-30cm","30-60cm","60-100cm","100-200cm")
   # df to hold unique combinations from all the layers
   data.depths <- data.frame()
-  
+
   # imagenes por profundidad
+#' Extract pixel combinations for each soil depth
+#'
+#' @param r Raster stack of soil variables.
+#' @param var_names Names of variables in the stack.
+#' @return Data frame with all value combinations.
+#' @keywords internal
   get_combinations <- function(r, var_names = c("Bulkd","Clay","Sand")) {
     lapply(depths, function(d){
       cat("Cargando mapas de profundidad ", d,"\n")
@@ -751,7 +857,17 @@ preprocess_soil_data = function(domain_path, remove_temp = FALSE, iter_num = 10)
     cat("🗑️ Removed temp folder:", temp_folder, "\n")
   }
 }
-
+#' Create a ROI mask from preprocessing outputs
+#'
+#' Combines DEM, geology, land cover, LAI and soil data to compute the final
+#' model mask.
+#'
+#' @param config_path Path to the configuration file.
+#' @param remove_temp Logical. Remove temporary files when finished.
+#' @param basin.mask If `TRUE`, clip outputs to the basin polygon.
+#'
+#' @examples
+#' create_roi_mask("/path/to/domain/preprocess_config.json")
 create_roi_mask = function(config_path, remove_temp = FALSE, basin.mask = FALSE){
   library(terra)
   library(jsonlite)
@@ -821,7 +937,16 @@ create_roi_mask = function(config_path, remove_temp = FALSE, basin.mask = FALSE)
   cat("Mask applied to dem, aspect, slope, fdir and facc. Files overwritten")
 }
 
-
+#' Preprocess streamflow observations
+#'
+#' Converts daily discharge records into the mHM text format for each gauge
+#' located inside the region of interest.
+#'
+#' @param domain_path Path to the domain folder.
+#' @param remove_temp Logical. Remove temporary files when finished.
+#'
+#' @examples
+#' preprocess_streamflow_data("/path/to/domain")
 preprocess_streamflow_data = function(domain_path, remove_temp = FALSE){
   library(jsonlite)
   library(lubridate)
@@ -899,7 +1024,15 @@ preprocess_streamflow_data = function(domain_path, remove_temp = FALSE){
     cat(sprintf("Wrote file: %s\n", output_file))
   }
 }
-
+#' Rasterize gauge identifiers
+#'
+#' Generates the `idgauges.asc` raster needed by mHM from station locations.
+#'
+#' @param domain_path Path to the domain folder.
+#' @param remove_temp Logical. Remove temporary files when finished.
+#'
+#' @examples
+#' create_idgauges("/path/to/domain")
 create_idgauges = function(domain_path, remove_temp = FALSE){
   library(sf)
   library(terra)
