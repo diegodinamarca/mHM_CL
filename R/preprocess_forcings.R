@@ -15,6 +15,7 @@
 #' @param prec Precision used when writing the NetCDF file.
 #' @param fix.negatives Logical. Clamp negative values to zero.
 #' @param iter_num Number of focal iterations to fill gaps.
+#' @param crop_to_roi Logical. Crop inputs to the ROI before resampling.
 #'
 #' @return Invisibly returns `NULL`. The processed NetCDF files are written to
 #'   disk.
@@ -30,7 +31,8 @@ preprocess_climate_data <- function(domain_path, remove_temp = TRUE,
                                     missval = -9999,
                                     prec = "double",
                                     fix.negatives = FALSE,
-                                    iter_num = 3) {
+                                    iter_num = 3,
+                                    crop_to_roi = TRUE) {
   library(jsonlite)
   library(terra)
   library(sf)
@@ -163,7 +165,9 @@ preprocess_climate_data <- function(domain_path, remove_temp = TRUE,
     cat("  📂 Found", length(input_files), "files in", input_dir, "\n")
     
     r <- rast(input_files, subds = VAR)
-    r <- crop(r, buffered_box)
+    if (crop_to_roi) {
+      r <- crop(r, buffered_box)
+    }
     r <- focal_repeat(r, iter_num)
     r.tf <- subset(r, time(r) >= as.Date(date1) & time(r) <= as.Date(date2))
     varnames(r.tf) <- "pre"
@@ -172,7 +176,9 @@ preprocess_climate_data <- function(domain_path, remove_temp = TRUE,
     r.rs <- resample(r.tf, ref, method = "bilinear")
     
     buffered_3km <- st_buffer(box.pol, dist = 3000)
-    r.rs <- crop(r.rs, buffered_3km)
+    if (crop_to_roi) {
+      r.rs <- crop(r.rs, buffered_3km)
+    }
     final_path <- file.path(clim_folder, paste0(mhm_varnames[[VAR]], ".nc"))
     if (fix.negatives){
       if (mhm_varnames[[VAR]] %in% c("pre","pet")){
@@ -238,12 +244,14 @@ preprocess_climate_data <- function(domain_path, remove_temp = TRUE,
 #' @param domain_path Path to the domain folder.
 #' @param remove_temp Logical. Remove temporary files on exit.
 #' @param iter_num Number of iterations for gap filling.
+#' @param crop_to_roi Logical. Crop LAI to ROI before resampling.
 #'
 #' @return Path to the generated NetCDF file is printed to the console.
 #'
 #' @examples
 #' preprocess_LAI_data("/path/to/domain")
-preprocess_LAI_data = function(domain_path, remove_temp = FALSE, iter_num = 10){
+preprocess_LAI_data = function(domain_path, remove_temp = FALSE, iter_num = 10,
+                               crop_to_roi = TRUE){
   library(terra)
   library(sf)
   library(jsonlite)
@@ -276,8 +284,12 @@ preprocess_LAI_data = function(domain_path, remove_temp = FALSE, iter_num = 10){
   # === Load LAI raster ===
   lai <- rast(lai_path)
   lai
-  # Clip LAI to ROI
-  lai_clipped <- crop(lai, vect(bbox))
+  # Clip LAI to ROI if requested
+  if (crop_to_roi) {
+    lai_clipped <- crop(lai, vect(bbox))
+  } else {
+    lai_clipped <- lai
+  }
   # Save clipped original
   writeRaster(lai_clipped, clipped_path, overwrite = TRUE)
   
@@ -320,10 +332,12 @@ preprocess_LAI_data = function(domain_path, remove_temp = FALSE, iter_num = 10){
 #'
 #' @param domain_path Path to the domain folder.
 #' @param remove_temp Logical. Remove temporary files once processing finishes.
+#' @param crop_to_roi Logical. Crop the DEM to the ROI before resampling.
 #'
 #' @examples
 #' preprocess_dem_data("/path/to/domain")
-preprocess_dem_data<- function(domain_path, remove_temp = FALSE) {
+preprocess_dem_data<- function(domain_path, remove_temp = FALSE,
+                               crop_to_roi = TRUE) {
   library(tidyverse)
   library(terra)
   library(sf)
@@ -354,8 +368,10 @@ preprocess_dem_data<- function(domain_path, remove_temp = FALSE) {
   # hydronet <- st_crop(hydronet, roi_buff)
   # hydronet_crop_file <- file.path(temp_folder, "hydronet.shp")
   
-  # Cortar DEM al buffer
-  dem <- crop(dem, vect(roi_buff))
+  # Cortar DEM al buffer if requested
+  if (crop_to_roi) {
+    dem <- crop(dem, vect(roi_buff))
+  }
   dem_file = file.path(temp_folder, "dem_clipped.tif")
   writeRaster(dem, filename = dem_file, overwrite = TRUE)
   
@@ -422,10 +438,12 @@ preprocess_dem_data<- function(domain_path, remove_temp = FALSE) {
 #'
 #' @param domain_path Path to the domain folder.
 #' @param remove_temp Logical. Remove temporary files after processing.
+#' @param crop_to_roi Logical. Crop the land cover raster to the ROI before resampling.
 #'
 #' @examples
 #' preprocess_lc_data("/path/to/domain")
-preprocess_lc_data = function(domain_path, remove_temp = FALSE){
+preprocess_lc_data = function(domain_path, remove_temp = FALSE,
+                              crop_to_roi = TRUE){
   library(tidyverse)
   library(terra)
   library(sf)
@@ -465,10 +483,14 @@ preprocess_lc_data = function(domain_path, remove_temp = FALSE){
   
   # Crear buffer de 4km (4000 metros)
   roi_buff <- st_buffer(box, dist = 4000)
-  
-  # Step 1: Load LC raster and clip to ROI
+
+  # Step 1: Load LC raster and optionally clip to ROI
   lc <- rast(raster_path)
-  lc_clipped <- crop(lc, vect(st_transform(roi_buff, 32719)))
+  if (crop_to_roi) {
+    lc_clipped <- crop(lc, vect(st_transform(roi_buff, 32719)))
+  } else {
+    lc_clipped <- lc
+  }
   
   # Save clipped raster
   clipped_path <- file.path(temp_folder, "landcover_clipped.tif")
@@ -514,10 +536,12 @@ preprocess_lc_data = function(domain_path, remove_temp = FALSE){
 #' @param domain_path Path to the domain folder.
 #' @param remove_temp Logical. Remove temporary files when done.
 #' @param source.file Use "local" shapefile or "global" GLiM data.
+#' @param crop_to_roi Logical. Crop geology data to the ROI before resampling.
 #'
 #' @examples
 #' preprocess_geo_data("/path/to/domain")
-preprocess_geo_data <- function(domain_path, remove_temp = FALSE, source.file = "local") {
+preprocess_geo_data <- function(domain_path, remove_temp = FALSE, source.file = "local",
+                               crop_to_roi = TRUE) {
   library(tidyverse)
   library(terra)
   library(sf)
@@ -542,13 +566,17 @@ preprocess_geo_data <- function(domain_path, remove_temp = FALSE, source.file = 
     roi <- st_read(roi_file, quiet = TRUE)
     box = get_extent(roi)
     bbox = st_buffer(box, dist = 3000)
-    
+
     # Leer shapefile geológico
     geo <- st_read(geo_file, quiet = TRUE)
-    
-    # Recortar geología a la extensión de la ROI
+
+    # Recortar geología a la extensión de la ROI if requested
     sf_use_s2(FALSE)
-    geo_clipped <- st_crop(geo, bbox)
+    if (crop_to_roi) {
+      geo_clipped <- st_crop(geo, bbox)
+    } else {
+      geo_clipped <- geo
+    }
     sf_use_s2(TRUE)
     
     # Crear LUT para 'cd_geol' (string → número)
@@ -577,12 +605,16 @@ preprocess_geo_data <- function(domain_path, remove_temp = FALSE, source.file = 
   }else if (source.file == "global"){
     roi <- st_read(roi_file, quiet = TRUE)
     r <- rast(geo_file_global)
-    
+
     # Buffer 10 km in UTM
     roi_buff = st_buffer(roi, dist = 50000)
-    
-    # Clip to buffered ROI
-    clipped <- crop(r, roi_buff)
+
+    # Clip to buffered ROI if requested
+    if (crop_to_roi) {
+      clipped <- crop(r, roi_buff)
+    } else {
+      clipped <- r
+    }
     buffered_path <- file.path(temp_folder, "geo_clipped.tif")
     writeRaster(clipped, buffered_path, overwrite = TRUE)
     
@@ -658,10 +690,12 @@ preprocess_geo_data <- function(domain_path, remove_temp = FALSE, source.file = 
 #' @param domain_path Path to the domain folder.
 #' @param remove_temp Logical. Remove temporary files once finished.
 #' @param iter_num Number of iterations for spatial gap filling.
+#' @param crop_to_roi Logical. Crop soil maps to the ROI before resampling.
 #'
 #' @examples
 #' preprocess_soil_data("/path/to/domain")
-preprocess_soil_data = function(domain_path, remove_temp = FALSE, iter_num = 10){
+preprocess_soil_data = function(domain_path, remove_temp = FALSE, iter_num = 10,
+                               crop_to_roi = TRUE){
   library(tidyverse)
   library(terra)
   library(sf)
@@ -694,7 +728,9 @@ preprocess_soil_data = function(domain_path, remove_temp = FALSE, iter_num = 10)
 #' @return Raster resampled to the reference grid.
 #' @keywords internal
   reproject_to_mhm_morph <- function(r) {
-    r = crop(r, roi_buff)
+    if (crop_to_roi) {
+      r = crop(r, roi_buff)
+    }
     # r = crop(r, ref)
     r = resample(r, ref, method = "bilinear")
   }
@@ -947,7 +983,8 @@ create_roi_mask = function(config_path, remove_temp = FALSE, basin.mask = FALSE)
 #'
 #' @examples
 #' preprocess_streamflow_data("/path/to/domain")
-preprocess_streamflow_data = function(domain_path, remove_temp = FALSE){
+preprocess_streamflow_data = function(domain_path, remove_temp = FALSE,
+                                      crop_to_roi = TRUE){
   library(jsonlite)
   library(lubridate)
   library(tidyverse)
@@ -965,9 +1002,14 @@ preprocess_streamflow_data = function(domain_path, remove_temp = FALSE){
   # Find gauges inside roi
   roi = read_sf(roi_file)
   gauges = read_sf(gauges_file) %>% st_transform(crs = st_crs(roi))
-  
-  gauge_list = as.character(st_intersection(roi, gauges)$ID)
-  cat(length(gauge_list),"Gauge stations found inside ROI: ", paste(gauge_list, collapse = ", "))
+
+  if (crop_to_roi) {
+    gauge_list = as.character(st_intersection(roi, gauges)$ID)
+    cat(length(gauge_list),"Gauge stations found inside ROI: ", paste(gauge_list, collapse = ", "))
+  } else {
+    gauge_list = as.character(gauges$ID)
+    cat(length(gauge_list),"Gauge stations processed: ", paste(gauge_list, collapse = ", "))
+  }
   
   dir.create(gauge_folder, showWarnings = FALSE)
   
