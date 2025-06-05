@@ -3,13 +3,22 @@ library(lubridate)
 library(tidyverse)
 
 # === Load configuration ===
-config <- fromJSON("/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/SCRIPTS/preprocess_config.json")
+config <- fromJSON("new_domain/preprocess_config.json")
 
 streamflow_data_file <- config$streamflow_data_file
-gauge_list <- config$gauge_list
-gauge_folder <- config$gauge_folder
+# gauge_list <- config$gauge_list
 
+gauges_file = config$fluv_station_file
+roi_file = config$roi_file
+gauge_folder <- file.path(domain_path, config$gauge_folder)
 dir.create(gauge_folder, showWarnings = FALSE, recursive = TRUE)
+
+# Find gauges inside roi
+roi = read_sf(roi_file)
+gauges = read_sf(gauges_file) %>% st_transform(crs = st_crs(roi))
+
+gauge_list = as.character(st_intersection(roi, gauges)$ID)
+cat(length(gauge_list),"Gauge stations found inside ROI: ", paste(gauge_list, collapse = ", "))
 
 # === Read CSV assuming the first column is date ===
 df <- read_csv(streamflow_data_file)
@@ -58,7 +67,7 @@ for (i in seq_along(gauge_list)) {
   output_lines <- c(output_lines, data_lines)
   
   # Write output
-  output_file <- file.path(gauge_folder, paste0(gauge_id, ".txt"))
+  output_file <- file.path(gauge_folder, paste0(gauge_id, ".day"))
   writeLines(output_lines, output_file)
   
   cat(sprintf("Wrote file: %s\n", output_file))

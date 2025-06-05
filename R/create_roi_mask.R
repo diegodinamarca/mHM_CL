@@ -70,8 +70,6 @@ geo_file = file.path(morph_folder, "geology_class.asc")
 lc_file = file.path(lc_folder, "landcover.asc")
 lai_file = file.path(lai_folder, "lai.nc")
 
-
-
 dem = rast(dem_file)
 geo = rast(geo_file)
 lc = rast(lc_file)

@@ -67,7 +67,7 @@ temp_folder = file.path(outdir, "temp");temp_folder
 dir.create(temp_folder)
 # leer raster de referencia pre.nc
 ref_file = file.path(config$meteo_folder, "pre.nc")
-ref_file = "/Users/mhm/Desktop/FONDECYT_CAMILA/7339001/morph/dem.asc"
+# ref_file = "/Users/mhm/Desktop/FONDECYT_CAMILA/7339001/morph/dem.asc"
 
 # leer dem
 dem_file = config$dem_file
@@ -105,14 +105,14 @@ roi_buff <- st_buffer(box.pol, dist = 3000)
 # write_sf(roi_buff, file.path(out_temp, "roi_buff_3km.geojson"))
 
 # cortar red hidrografica
-hydronet = st_crop(hydronet, roi_buff)
-hydronet_crop_file = file.path(temp_folder, "hydronet.shp")
+# hydronet = st_crop(hydronet, roi_buff)
+# hydronet_crop_file = file.path(temp_folder, "hydronet.shp")
 # write_sf(hydronet, hydronet_crop_file)
 
 # Cortar DEM al buffer
-dem_crop <- crop(dem, vect(roi_buff))
-dem_crop_file = file.path(temp_folder, "dem_clipped.tif")
-writeRaster(dem_crop, filename = dem_crop_file, overwrite = TRUE)
+dem <- crop(dem, vect(roi_buff))
+dem_file = file.path(temp_folder, "dem_clipped.tif")
+writeRaster(dem, filename = dem_file, overwrite = TRUE)
 
 # resample DEM to L0 resolution
 # load reference file
@@ -120,180 +120,44 @@ ref <- rast(ref_file)[[1]]
 res(ref) = cellsize
 ref
 
-dem_rs = resample(dem_crop, ref, method = "bilinear")
-dem_rs
-# dem_rs = dem_crop
-dem_rs_file = file.path(temp_folder, "dem_resampled.tif")
-writeRaster(dem_rs, filename = dem_rs_file, overwrite = TRUE, datatype = "INT4S")
+dem = resample(dem, ref, method = "bilinear")
+dem_file = file.path(temp_folder, "dem_resampled.tif")
+writeRaster(dem, filename = dem_file, overwrite = TRUE)
 
-# Rellenar deplot()# Rellenar depresiones (fill sinks)
-my_grass = "/Applications/GRASS-8.4.app/Contents/Resources"
+wbt_init()
+smooth_dem = file.path(temp_folder, "smoothed.tif")
+# wbt_feature_preserving_smoothing(dem_file, output = smooth_dem, filter = 7)
 
-# Add bin and scripts to PATH
-Sys.setenv(PATH = paste(
-  file.path(my_grass, "bin"),
-  file.path(my_grass, "scripts"),
-  Sys.getenv("PATH"),
-  sep = ":"
-))
+filled_dem = file.path(temp_folder, "filled_dem.tif")
+# wbt_breach_depressions(dem = smooth_dem, output = filled_dem)
 
-initGRASS(my_grass, mapset = "PERMANENT", override = TRUE)
-check_running()
-set_envir(dem_rs_file)
+facc = file.path(temp_folder, "facc.tif")
+# wbt_d_inf_flow_accumulation(input = filled_dem, output = facc)
 
-# cargar hydronet a grass
-vector_to_mapset(
-  hydronet_crop_file, # vector of inputs (give file paths)
-  overwrite = TRUE
-)
-# ver variable cargadas
-vibe_check()
+fdir = file.path(temp_folder, "fdir.tif")
+wbt_flow_accumulation_full_workflow(dem = dem_file, 
+                                    out_dem = filled_dem, 
+                                    out_pntr = fdir, 
+                                    out_accum = facc, 
+                                    out_type = "cells",
+                                    esri_pntr = TRUE, verbose_mode = TRUE)
 
-rasterise_stream(
-  streams = "hydronet", # input of vector stream lines
-  out = file.path(temp_folder,"hydronet.tif"), # name of output raster
-  TRUE
-)
-reclassify_streams(
-  "hydronet.tif", # input raster
-  "hydronet01.tif", # output raster
-  overwrite = TRUE
-)
+slope = file.path(temp_folder, "slope.tif")
+wbt_slope(dem = filled_dem, output = slope)
+aspect = file.path(temp_folder, "aspect.tif")
+wbt_aspect(dem = filled_dem, output = aspect)
 
-# burn streams
-burn_in(
-  dem = "dem_resampled.tif", 
-  stream = "hydronet01.tif", # should be in 0-1 format, 0 for non-stream cells, 1 for stream cells,
-  out = "burndem.tif", 
-  overwrite = TRUE
-)
-
-nsinks = function(sink_file){
-  sinks = rast(sink_file)
-  cells = ncell(sink)
-  plot(sinks)
-  nsink = sinks[sinks != -1] %>% nrow
-}
-
-fill_sinks(
-  dem = "burndem.tif", 
-  out_dem = "filldem.tif", 
-  out_fd = "fd1.tif", # flow-direction grid that cannot be used in subsequent steps but is required by GRASS
-  overwrite = T,
-  out_sinks = "sinks.tif"
-)
-sink_file = file.path(temp_folder, "sinks.tif")
-retrieve_raster("sinks.tif", sink_file, overwrite = TRUE)
-print(nsinks(sink_file))
-for (i in 1:5) {
-  # print(i)
-  fill_sinks(
-    dem = "filldem.tif", 
-    out_dem = "filldem.tif", 
-    out_fd = "fd1.tif", # flow-direction grid that cannot be used in subsequent steps but is required by GRASS
-    overwrite = T,
-    out_sinks = "sinks.tif"
-  )
-  sink_file = file.path(temp_folder, "sinks.tif")
-  retrieve_raster("sinks.tif", sink_file, overwrite = TRUE)
-  nsinks_out = nsinks(sink_file)
-  nsinks_cell = ncell(rast(sink_file))
-  
-  if (nsinks_out == nsinks_cell){
-    cat("\n All sinks filled")
-    
-  }
-}
-
-
-# Derive flow direction and accumulation rasters
-derive_flow(
-  dem = "filldem.tif", 
-  flow_dir = "flowdir.tif", # uses d8 by default
-  flow_acc = "flowacc.tif", 
-  overwrite = TRUE
-)
-
-# Filled DEM 
-plot_GRASS("filldem.tif", colours = topo.colors(15))
-# Flow Direction
-plot_GRASS("flowdir.tif", colours = topo.colors(6)) # grid has fewer than 8 directions
-# Flow Accumulation
-plot_GRASS("flowacc.tif", topo.colors(6))
-
-retrieve_raster("filldem.tif", file.path(temp_folder, "filldem.tif"), overwrite = TRUE)
-retrieve_raster("flowacc.tif", file.path(temp_folder, "flowacc.tif"), overwrite = TRUE)
-retrieve_raster("flowdir.tif", file.path(temp_folder, "flowdir.tif"), overwrite = TRUE)
-
-# reclassify flow direction
-flowdir_file = file.path(temp_folder, "flowdir.tif")
-flowdir = abs(rast(flowdir_file))
-mat.reclass = rbind(
-  c(8,1),
-  c(7,2),
-  c(6,4),
-  c(5,8),
-  c(4,16),
-  c(3,32),
-  c(2,64),
-  c(1,128)
-)
-flowdir_class = terra::classify(flowdir, rcl = as.matrix(mat.reclass))
-writeRaster(flowdir_class, file.path(temp_folder, "flowdir_reclass.tif"), overwrite = TRUE)
-
-# Calcular slope, aspect, flow direction, flow accumulation
-dem_filled_file = file.path(temp_folder, "filldem.tif")
-dem_filled = rast(dem_filled_file)
-slope <- terrain(dem_filled, v = "slope", unit = "degrees")
-aspect <- terrain(dem_filled, v = "aspect", unit = "degrees")
-
-# flowdir = terrain(dem_filled, v = "flowdir")
-# facc = flowAccumulation(flowdir)
-# plot(flowdir)
-# plot(facc)
-
-# Escribir las capas
-writeRaster(slope, filename = file.path(temp_folder, "slope.tif"), overwrite = TRUE)
-writeRaster(aspect, filename = file.path(temp_folder, "aspect.tif"), overwrite = TRUE)
-
-# read flow accumulation
-facc = rast(file.path(temp_folder, "flowacc.tif"))
-
-# === OPCIONAL: RESAMPLE TO REFERENCE ===========================
-
-# resample
-dem_rs = resample(dem_filled, ref, method = "bilinear")
-slope_rs <- resample(slope, ref, method = "bilinear")
-aspect_rs <- resample(aspect, ref, method = "bilinear")
-fdir_rs <- resample(flowdir_class, ref, method = "near")
-facc_rs <- resample(facc, ref, method = "bilinear")
-
-
-r.mask = rast(ref_file)
-dem_rs = mask(dem_rs, r.mask)
-slope_rs = mask(slope_rs, r.mask)
-aspect_rs = mask(aspect_rs, r.mask)
-fdir_rs = mask(fdir_rs, r.mask)
-facc_rs = mask(facc_rs, r.mask)
-
-terrain(x = dem_rs, "flowdir")
-flowAccumulation()
-# dem_rs = ddem_rs# dem_rs = dem_filled
-# slope_rs <- slope
-# aspect_rs <- aspect
-# fdir_rs <- flowdir_class
-# facc_rs <- facc
 
 # Guardar versiones remuestreadas
-writeRaster(dem_rs, filename = file.path(outdir, "dem.asc"), overwrite = TRUE,
+writeRaster(rast(filled_dem), filename = file.path(outdir, "dem.asc"), overwrite = TRUE,
             datatype = "FLT8S", NAflag = -9999)
-writeRaster(slope_rs, filename = file.path(outdir, "slope.asc"), overwrite = TRUE,
+writeRaster(rast(slope), filename = file.path(outdir, "slope.asc"), overwrite = TRUE,
             datatype = "FLT8S", NAflag = -9999)
-writeRaster(aspect_rs, filename = file.path(outdir, "aspect.asc"), overwrite = TRUE,
+writeRaster(rast(aspect), filename = file.path(outdir, "aspect.asc"), overwrite = TRUE,
             datatype = "FLT8S", NAflag = -9999)
-writeRaster(fdir_rs, filename = file.path(outdir, "fdir.asc"), overwrite = TRUE,
+writeRaster(rast(fdir), filename = file.path(outdir, "fdir.asc"), overwrite = TRUE,
             datatype = "INT4S", NAflag = -9999)
-writeRaster(facc_rs, filename = file.path(outdir, "facc.asc"), overwrite = TRUE,
+writeRaster(rast(facc), filename = file.path(outdir, "facc.asc"), overwrite = TRUE,
             datatype = "INT4S", NAflag = -9999)
 
 cat("\n PROCESAMIENTO COMPLETO. Archivos guardados en:", outdir, "\n")

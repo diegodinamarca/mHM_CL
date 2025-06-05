@@ -58,15 +58,15 @@
 
 
 # Match with mhm resolution and extent ------------------------------------
-config <- fromJSON("/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/SCRIPTS/preprocess_config.json")
+config <- fromJSON("new_domain/preprocess_config.json")
 
 roi_file = config$roi_file
 soil_files = config$soil_folder
-ref_file = file.path(config$meteo_folder,"pre.nc")
 cellsize = config$cellsize
-outdir = config$morph_folder
-out_temp = str_c(outdir, "/temp");out_temp
-dir.create(out_temp)
+ref_file = file.path(domain_path, config$meteo_folder,"pre.nc")
+morph_folder = file.path(domain_path, config$morph_folder)
+temp_folder = file.path(morph_folder, "temp");temp_folder
+dir.create(temp_folder, showWarnings = FALSE)
 
 # read ROI
 roi = read_sf(roi_file)
@@ -103,19 +103,19 @@ focal_repeat = function(r, n){
 }
 
 bulkd_filled = focal_repeat(bulkd_r, 10)
-plot(bulkd_r)
-plot(bulkd_filled)
-writeRaster(bulkd_filled, filename = paste0(out_temp, "/bulkd_filled.tif"), overwrite = TRUE)
+plot(bulkd_r[[1]])
+plot(bulkd_filled[[1]])
+writeRaster(bulkd_filled, filename = paste0(temp_folder, "/bulkd_filled.tif"), overwrite = TRUE)
 
 clay_filled = focal_repeat(clay_r, 10)
-plot(clay_r)
-plot(clay_filled)
-writeRaster(clay_filled, filename = paste0(out_temp, "/clay_filled.tif"), overwrite = TRUE)
+plot(clay_r[[1]])
+plot(clay_filled[[1]])
+writeRaster(clay_filled, filename = paste0(temp_folder, "/clay_filled.tif"), overwrite = TRUE)
 
 sand_filled = focal_repeat(sand_r, 10)
-plot(sand_r)
-plot(sand_filled)
-writeRaster(sand_filled, filename = paste0(out_temp, "/sand_filled.tif"), overwrite = TRUE)
+plot(sand_r[[1]])
+plot(sand_filled[[1]])
+writeRaster(sand_filled, filename = paste0(temp_folder, "/sand_filled.tif"), overwrite = TRUE)
 
 # Create mhm classification maps ------------------------------------------
 depths = c("0-5cm","5-15cm","15-30cm","30-60cm","60-100cm","100-200cm")
@@ -124,7 +124,7 @@ depths = c("0-5cm","5-15cm","15-30cm","30-60cm","60-100cm","100-200cm")
 data.depths <- data.frame()
 
 # imagenes por profundidad
-get_unique_combinations <- function(r, var_names = c("Bulkd","Clay","Sand")) {
+get_combinations <- function(r, var_names = c("Bulkd","Clay","Sand")) {
   lapply(depths, function(d){
     cat("Cargando mapas de profundidad ", d,"\n")
     index = grep(d, names(r))
@@ -132,33 +132,30 @@ get_unique_combinations <- function(r, var_names = c("Bulkd","Clay","Sand")) {
     cat("Extrayendo valores\n")
     imgs.df <- values(imgs)
     colnames(imgs.df) <- var_names
-    imgs.df <- imgs.df %>% as_tibble %>% 
-      mutate(Clay = round(Clay, digits = 0),
-             Sand = round(Sand, digits = 0),
-             Bulkd = round(Bulkd, digits = 2))
+    imgs.df %>% as_tibble()
   }) %>% 
-    bind_rows() %>% 
-    group_by_all() %>%
-    slice(1) %>%
-    ungroup()
-
+    bind_rows()
 }
 
 all_soil = c(
-  bulkd_filled,
-  sand_filled,
-  clay_filled
+  round(bulkd_filled,digits=2),
+  round(sand_filled,digits=0),
+  round(clay_filled,digits=0)
   )
 
+soil.mask = sum(!is.na(all_soil))
+soil.mask[soil.mask != 18] = NA
+all_soil = mask(all_soil, soil.mask)
 
-data.depths = get_unique_combinations(all_soil)
+data.depths = get_combinations(all_soil)
 glimpse(data.depths)
 
 # contar combinaciones presentes
-comb.data <- data.depths %>% group_by_all() %>% count
+comb.data <- data.depths %>% group_by_all() %>% count() %>% drop_na()
 
 # definir ID de tipo de suelo
 comb.data$comb_id <- seq(1, nrow(comb.data));comb.data
+
 # beepr::beep(sound = 5)
 
 for (i in 1:6) {
@@ -175,10 +172,7 @@ for (i in 1:6) {
   
   # redondear texturas a enteros y Da a 1 decimal
   imgs.df = imgs.df %>% 
-    as_tibble() %>% 
-    mutate(Clay = as.integer(round(Clay, digits = 0)),
-           Sand = as.integer(round(Sand, digits = 0)),
-           Bulkd = round(Bulkd, digits = 2))
+    as_tibble()
   #asignar el ID de suelo a cada pixel
   cat("Asignando clases de suelo...\n")
   imgs.class <- left_join(imgs.df, comb.data, by = c("Clay","Sand","Bulkd"), keep = F)
@@ -188,36 +182,17 @@ for (i in 1:6) {
   values(v) <- imgs.class$comb_id
   names(v) = paste0("soilclass_0",i)
 
-  # png(paste0(outdir,"SG_class_horizon_0",i,".png"), width = 1400, height = 800)
-  # plot(v)
-  # dev.off()
-  
   #exportar resultado
   cat("Exportando resultados...\n")
   names(v) = paste0("soil_class_horizon_0",i,".tif")
-  v %>% writeRaster(str_c(out_temp,"/soil_class_horizon_0",i,".tif"), overwrite = T)
+  v %>% writeRaster(str_c(temp_folder,"/soil_class_horizon_0",i,".tif"), overwrite = T)
 }
 
-# exportar tabla de clasificaciones
-comb.data %>% write_csv(paste0(out_temp,"/soilclass_withNA.csv"))
-
 # ruta de imagenes
-imgs <- list.files(out_temp, full.names = T, pattern = "soil_class_horizon_[0-9]+.tif$") %>% rast;imgs
-files <- list.files(out_temp, full.names = T, pattern = "soil_class_horizon_[0-9]+.tif$");files
-
-# Remover clases con valores NA
-rm.class <- comb.data %>% ungroup() %>% filter(is.na(Sand) | is.na(Clay) | is.na(Bulkd)) %>%
-  select(comb_id) %>% unique
-rm.class <- rm.class$comb_id
-rm.class
-
-# exportar clases sin valores NA
-comb.data = comb.data %>% 
-  filter(!(comb_id %in% rm.class)) %>%
-  write_csv(paste0(out_temp,"/soilclasses.csv"))
+imgs <- list.files(temp_folder, full.names = T, pattern = "soil_class_horizon_[0-9]+.tif$") %>% rast;imgs
 
 EX.TABLE = comb.data %>% 
-  mutate(ID = cur_group_id()) %>% 
+  mutate(ID = comb_id) %>% 
   mutate(Clay = as.integer(Clay),
          Sand = as.integer(Sand)) %>% 
   select(
@@ -225,13 +200,13 @@ EX.TABLE = comb.data %>%
     `CLAY[%]` = Clay,
     `SAND[%]` = Sand,
     `Bd_mu[gcm-3]` = Bulkd,
-    nSamples = comb_id
+    nSamples = n
   )
 
 
 nSoiltypes = nrow(comb.data);nSoiltypes
-write_lines(str_c("nSoil_Types\t" ,as.integer(nSoiltypes)) ,str_c(outdir, "/soil_classdefinition_iFlag_soilDB_1.txt"))
-write_delim(EX.TABLE, str_c(outdir, "/soil_classdefinition_iFlag_soilDB_1.txt"), 
+write_lines(str_c("nSoil_Types\t" ,as.integer(nSoiltypes)) ,str_c(morph_folder, "/soil_classdefinition_iFlag_soilDB_1.txt"))
+write_delim(EX.TABLE, str_c(morph_folder, "/soil_classdefinition_iFlag_soilDB_1.txt"), 
             append = TRUE, 
             col_names = TRUE, delim = "\t")
 
@@ -242,17 +217,13 @@ for (i in 1:6) {
   # i = 1
   print(i)
   img <- imgs[[i]]
-  img[img %in% rm.class] <- NA
   rr <- c(rr, img)
 }
 is.na(rr) %>% plot
 
 # beepr::beep(sound = 5)
 names(rr) = paste0("soil_class_horizon_0",c(1,2,3,4,5,6),".tif")
-writeRaster(rr, 
-            paste0(out_temp,"/soil_class_horizon_0",c(1,2,3,4,5,6),"_NA_removed.tif"),
-            overwrite = T)
 writeRaster(rr,
-            paste0(outdir,"/soil_class_horizon_0",c(1,2,3,4,5,6),".asc"),
+            paste0(morph_folder,"/soil_class_horizon_0",c(1,2,3,4,5,6),".asc"),
             overwrite = T, datatype = "INT4S", NAflag = -9999)
 
