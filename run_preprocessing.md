@@ -21,6 +21,19 @@ Este script prepara todos los insumos necesarios para ejecutar el modelo mHM. A 
 source("R/run_preprocessing.R")
 ```
 
+### Ejecución en modo batch
+
+Si se desea lanzar el preprocesamiento directamente desde la línea de comandos,
+se puede utilizar el script `run_preprocessing_batch.R` indicando el dominio
+como argumento:
+
+```bash
+Rscript R/run_preprocessing_batch.R /ruta/al/dominio
+```
+
+Esta versión es equivalente al script original pero permite definir la ruta del
+dominio sin editar el código.
+
 El script creará automáticamente las carpetas definidas en el archivo de configuración y llamará a cada una de las funciones de preprocesamiento (clima, LAI, DEM, uso de suelo, suelos, geología, caudales, etc.). Además, ejecutará scripts de Python para generar los archivos `latlon` y actualizar los archivos de parámetros de mHM.
 
 ## Contenido del archivo de configuración
