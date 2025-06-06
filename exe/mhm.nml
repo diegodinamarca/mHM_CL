@@ -1,0 +1,154 @@
+&project_description
+    project_details = 'mHM Chilean basins'
+    setup_description = 'model forced with CR2MET, PET-HS-CR2MET, monthly LAI, LC-zhao, CR2SOIL'
+    simulation_type = 'param calibration 1985-2005'
+    conventions = 'XXX'
+    contact = 'mHM developers (email:mhm-developers@ufz.de)'
+    mhm_details = 'Helmholtz Center for Environmental Research - UFZ, Department Computational Hydrosystems, Stochastic Hydrology Group'
+    history = 'model run version 1'
+/
+
+&mainconfig
+    iflag_cordinate_sys = 1
+    ndomains = 1
+    resolution_hydrology(1) = 0.03125
+    l0domain(1) = 1
+    write_restart = .false.
+    read_opt_domain_data(1) = 0
+/
+
+&mainconfig_mhm_mrm
+    mhm_file_restartin(1) = 'test_domain/restart/'
+    mrm_file_restartin(1) = 'test_domain/restart/'
+    resolution_routing(1) = 0.03125
+    timestep = 1
+    read_restart = .false.
+    optimize = .false.
+    optimize_restart = .false.
+    opti_method = 1
+    opti_function = 2
+/
+
+&mainconfig_mrm
+    alma_convention = .true.
+    varnametotalrunoff = 'total_runoff'
+    filenametotalrunoff = 'total_runoff'
+    gw_coupling = .false.
+/
+
+&directories_general
+    dirconfigout = '../OUT/'
+    dircommonfiles = '../morph/'
+    dir_morpho(1) = '../morph/'
+    dir_lcover(1) = '../landcover/'
+    dir_out(1) = '../OUT/'
+    file_latlon(1) = '../latlon/latlon.nc'
+/
+
+&directories_mhm
+    inputformat_meteo_forcings = 'nc'
+    dir_precipitation(1) = '../meteo/'
+    dir_temperature(1) = '../meteo/'
+    dir_referenceet(1) = '../meteo/'
+    dir_mintemperature(1) = '../meteo/'
+    dir_maxtemperature(1) = '../meteo/'
+    time_step_model_inputs(1) = 0
+/
+
+&directories_mrm
+    dir_gauges(1) = '../gauges/'
+/
+
+&optional_data
+    dir_soil_moisture(1) = 'test_domain/input/optional_data/'
+    nsoilhorizons_sm_input = 1
+    timestep_sm_input = -2
+    dir_neutrons(1) = 'test_domain/input/optional_data/'
+    dir_evapotranspiration(1) = 'test_domain/input/optional_data/'
+    timestep_et_input = -2
+    dir_tws(1) = 'test_domain/input/optional_data/'
+    timestep_tws_input = -2
+/
+
+&processselection
+    processcase(1:10) = 1, 1, 1, 1, -1, 1, 1, 3, 1, 0
+/
+
+&lcover
+    nlcoverscene = 1
+    lcoveryearstart(1) = 1900
+    lcoveryearend(1) = 2100
+    lcoverfname(1) = 'landcover.asc'
+/
+
+&time_periods
+    warming_days(1) = 1100
+    eval_per(1)%ystart = 1985
+    eval_per(1)%mstart = 1
+    eval_per(1)%dstart = 1
+    eval_per(1)%yend = 2021
+    eval_per(1)%mend = 12
+    eval_per(1)%dend = 30
+/
+
+&soildata
+    iflag_soildb = 1
+    tillagedepth = 300
+    nsoilhorizons_mhm = 6
+    soil_depth(1:6) = 50, 150, 300, 600, 1000, 2000
+/
+
+&lai_data_information
+    timestep_lai_input = 1
+    inputformat_gridded_lai = 'nc'
+/
+
+&lcover_mpr
+    fracsealed_cityarea = 0.6
+/
+
+&directories_mpr
+    dir_gridded_lai(1) = '../lai/'
+/
+
+&evaluation_gauges
+    ngaugestotal = 1
+    nogauges_domain(1) = 1
+    gauge_id = 1001002
+    gauge_filename = '1001002.day'
+/
+
+&inflow_gauges
+    ninflowgaugestotal = 0
+    noinflowgauges_domain(1) = 0
+    inflowgauge_id(1,1) = -9
+    inflowgauge_filename(1,1) = ''
+    inflowgauge_headwater(1,1) = .false.
+/
+
+&panevapo
+    evap_coeff = 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                 1.0
+/
+
+&nightdayratio
+    read_meteo_weights = .false.
+    fnight_prec = 0.46, 0.5, 0.52, 0.51, 0.48, 0.5, 0.49, 0.48, 0.52, 0.56,
+                  0.5, 0.47
+    fnight_pet = 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
+                 0.1
+    fnight_temp = -0.76, -1.3, -1.88, -2.38, -2.72, -2.75, -2.74, -3.04,
+                  -2.44, -1.6, -0.94, -0.53
+/
+
+&optimization
+    niterations = 500
+    seed = -9
+    dds_r = 0.2
+    sa_temp = -9.0
+    sce_ngs = 2
+    sce_npg = -9
+    sce_nps = -9
+    mcmc_opti = .false.
+    mcmc_error_params = 0.01, 0.6
+/

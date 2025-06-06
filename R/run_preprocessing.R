@@ -21,14 +21,16 @@ source("scripts/R/utils.R")
 source("scripts/R/preprocess_forcings.R")
 
 # 1.set the path for the domain where all outputs will be written
-domain_path = "/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/domain_zone_7"
+domain_path = "/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/domain_zone_5"
 
 # set up virtual environment with python packages.
 # Recommended: use a virtual environment with mhm installation
   # instructions in: https://mhm-ufz.org/guides/install-unix/
 # Additional packages needed
   # subprocess, os, json, re
-use_condaenv("mhm_env", required = TRUE)
+# use_condaenv("mhm_env", required = TRUE)
+# Specify the path to the Python interpreter
+use_python("/Users/mhm/miniforge3/envs/mhm_env/bin/python", required = TRUE)
 
 # The configuration file must be inside the domain_path
 config_path <- file.path(domain_path, "preprocess_config.json")
@@ -67,11 +69,15 @@ create_idgauges(domain_path, remove_temp = TRUE)
 source_python("/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/SCRIPTS/python/run_create_latlon.py")
 source_python("/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/SCRIPTS/python/create_geoparameter_block.py")
 source_python("/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/SCRIPTS/python/modify_parameters_with_geoblock.py")
+source_python("/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/SCRIPTS/python/update_nml_gauges.py")
 # py_run_file("/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/SCRIPTS/run_create_latlon.py")
 # Call the function defined in the Python script
 run_create_latlon(domain_path)
 write_geoparam_block(domain_path)
 update_geoparam_block(domain_path)
+update_evaluation_gauges(domain_path)
 
+# add an option to calibrate the model modifying mhm.nml
+# modify the time periods especisfied in mhm.nml
 # Shuffle initial parameter values
-
+# 
