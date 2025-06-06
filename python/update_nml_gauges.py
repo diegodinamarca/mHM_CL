@@ -40,7 +40,7 @@ def update_evaluation_gauges(domain_path):
 
     # Update the evaluation_gauges section
     nml['evaluation_gauges']['ngaugestotal'] = len(gauge_ids)
-    nml['evaluation_gauges']['nogauges_domain'] = [len(gauge_ids)]
+    nml['evaluation_gauges']['nogauges_domain'] = 1
     nml['evaluation_gauges']['gauge_id'] = gauge_ids
     nml['evaluation_gauges']['gauge_filename'] = gauge_files
 

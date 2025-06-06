@@ -70,14 +70,16 @@ source_python("/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/SCRIPTS/python/run_cr
 source_python("/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/SCRIPTS/python/create_geoparameter_block.py")
 source_python("/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/SCRIPTS/python/modify_parameters_with_geoblock.py")
 source_python("/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/SCRIPTS/python/update_nml_gauges.py")
+source_python("/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/SCRIPTS/python/update_time_periods.py")
+
 # py_run_file("/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/SCRIPTS/run_create_latlon.py")
 # Call the function defined in the Python script
 run_create_latlon(domain_path)
 write_geoparam_block(domain_path)
 update_geoparam_block(domain_path)
 update_evaluation_gauges(domain_path)
+update_time_periods(domain_path)
 
 # add an option to calibrate the model modifying mhm.nml
 # modify the time periods especisfied in mhm.nml
 # Shuffle initial parameter values
-# 
