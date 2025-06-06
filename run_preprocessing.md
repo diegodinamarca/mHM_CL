@@ -6,7 +6,10 @@ Este script prepara todos los insumos necesarios para ejecutar el modelo mHM. A 
 
 - **R** con los paquetes indicados en el propio script (`reticulate`, `jsonlite`, `terra`, `sf`, `magrittr`, `tidyverse`, `whitebox`, `lubridate`).
 - **Python** configurado dentro de un entorno virtual que incluya la instalación de mHM y los paquetes adicionales (`subprocess`, `os`, `json`, `re`).
+- **mHM** instalado en un entorno **conda**. Se recomienda seguir la [guía oficial](https://mhm-ufz.org/guides/) para completar la instalación.
+- Haber clonado el repositorio oficial de mHM para disponer del script `create_latlon.py` ubicado en `pre-proc`. En `preprocess_config.json` se debe definir la clave `"latlon_script_folder"` apuntando a esta carpeta.
 - Un archivo `preprocess_config.json` dentro de la carpeta del dominio donde se guardarán las salidas.
+- Para crear un nuevo dominio cree una carpeta (por ejemplo `new_domain`), copie allí `preprocess_config.json` con las rutas de las forzantes a procesar y especifique esta ruta en `run_preprocessing.R` mediante la variable `domain_path`.
 
 ## Uso básico
 
