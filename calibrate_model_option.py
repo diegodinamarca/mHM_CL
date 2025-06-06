@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Jun  6 11:14:13 2025
+
+@author: mhm
+"""
+import os
+import json
+import shutil
+import f90nml
+
+def update_calibrate_option(domain_path):
+    """
+    Rewrites the &mainconfig_mhm_mrm section in mhm.nml using values from preprocess_config.json,
+    including a dynamic 'optimize' value based on the 'calibrate_model' key in the config file.
+    """
+
+    # Paths
+    config_path = os.path.join(domain_path, 'preprocess_config.json')
+    exe_path = os.path.join(domain_path, 'exe')
+    nml_path = os.path.join(exe_path, 'mhm.nml')
+    temp_dir = os.path.join(exe_path, 'temp')
+    backup_path = os.path.join(temp_dir, 'mhm_backup.nml')
+
+    os.makedirs(temp_dir, exist_ok=True)
+
+    # Read config file
+    try:
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+    except Exception as e:
+        print(f"Error reading JSON config: {e}")
+        return
+
+    # Read and back up NML
+    try:
+        nml = f90nml.read(nml_path)
+        shutil.copy2(nml_path, backup_path)
+        print(f"Backup created at: {backup_path}")
+    except Exception as e:
+        print(f"Error reading or backing up NML: {e}")
+        return
+
+    # Get optimize value from JSON
+    optimize_flag = config.get("calibrate_model", False)
+    optimize_str = '.true.' if optimize_flag else '.false.'
+
+    # Define new section
+    new_mainconfig_mhm_mrm = {
+        "mhm_file_restartin(1)": "test_domain/restart/",
+        "mrm_file_restartin(1)": "test_domain/restart/",
+        "resolution_routing(1)": 0.03125,
+        "timestep": 1,
+        "read_restart": ".false.",
+        "optimize": optimize_str,
+        "optimize_restart": ".false.",
+        "opti_method": 1,
+        "opti_function": 2
+    }
+
+    # Replace the section
+    nml["mainconfig_mhm_mrm"] = new_mainconfig_mhm_mrm
+
+    # Write updated namelist
+    try:
+        nml.write(nml_path, force=True)
+        print(f"&mainconfig_mhm_mrm section updated in: {nml_path}")
+    except Exception as e:
+        print(f"Error writing updated NML: {e}")

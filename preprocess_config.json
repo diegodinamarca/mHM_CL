@@ -48,6 +48,7 @@
   "start_date": "1960-01-01",
   "end_date": "2021-12-31",
   "cellsize_clim":  0.03125,
-  "cellunit": "degrees"
+  "cellunit": "degrees",
+  "calibrate_model": false
 }
 

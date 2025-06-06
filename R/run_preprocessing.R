@@ -65,21 +65,25 @@ preprocess_streamflow_data(domain_path, remove_temp = TRUE)
 # Create gauge raster
 create_idgauges(domain_path, remove_temp = TRUE)
 
-# Create latlon file
+# Load python functions
 source_python("/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/SCRIPTS/python/run_create_latlon.py")
 source_python("/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/SCRIPTS/python/create_geoparameter_block.py")
 source_python("/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/SCRIPTS/python/modify_parameters_with_geoblock.py")
 source_python("/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/SCRIPTS/python/update_nml_gauges.py")
 source_python("/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/SCRIPTS/python/update_time_periods.py")
+source_python("/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/SCRIPTS/python/calibrate_model_option.py")
 
-# py_run_file("/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/SCRIPTS/run_create_latlon.py")
 # Call the function defined in the Python script
+# create latlon.nc
 run_create_latlon(domain_path)
+# write geoparameter block for mhm_parameter.nml
 write_geoparam_block(domain_path)
+# update mhm_parameter.nml with the geoparameter block
 update_geoparam_block(domain_path)
+# update mhm.nml with the gauges inside the gauges folder
 update_evaluation_gauges(domain_path)
+# update simulation/calibration time period
 update_time_periods(domain_path)
-
 # add an option to calibrate the model modifying mhm.nml
-# modify the time periods especisfied in mhm.nml
+update_calibrate_option(domain_path)
 # Shuffle initial parameter values
