@@ -1,7 +1,7 @@
 #' Preprocess climate forcing data
 #'
-#' This function crops, resamples and writes meteorological variables to the
-#' mHM domain defined in `preprocess_config.json`.
+#' This function crops, resamples, fills missin pixels and writes meteorological
+#' variables to the mHM domain defined in `preprocess_config.json`.
 #'
 #' @param domain_path Path to the domain folder containing the configuration
 #'   file.
@@ -25,8 +25,6 @@
 preprocess_climate_data <- function(domain_path, remove_temp = TRUE,
                                     large.raster = FALSE,
                                     batch_size = 4000,
-                                    units = "",
-                                    longname = "",
                                     time_origin = "1960-01-01",
                                     missval = -9999,
                                     prec = "double",
@@ -55,8 +53,8 @@ preprocess_climate_data <- function(domain_path, remove_temp = TRUE,
 #' @keywords internal
   write_large_raster_to_netcdf <- function(rast, filename, varname,
                                           batch_size,
-                                          units,
-                                          longname,
+                                          units = "",
+                                          longname = "",
                                           time_origin,
                                           missval,
                                           prec,
@@ -114,6 +112,7 @@ preprocess_climate_data <- function(domain_path, remove_temp = TRUE,
     nc_close(nc)
     cat("✅ NetCDF successfully written to:", filename, "\n")
   }
+  
   # Load config
   config_path <- file.path(domain_path, "preprocess_config.json")
   config <- fromJSON(config_path)
@@ -153,7 +152,13 @@ preprocess_climate_data <- function(domain_path, remove_temp = TRUE,
   X1 <- bbox["xmin"]; Y1 <- bbox["ymin"]; X2 <- bbox["xmax"]; Y2 <- bbox["ymax"]
   
   mhm_varnames <- c("pre", "tmin", "tmax", "tavg", "pet")
+  var_units <- c("mm","degC","degC","degC","mm")
+  var_longnames <- c("Precipitation","Min. temperature","Max. temperature",
+                     "Potential evapotranspiration")
+  
   names(mhm_varnames) <- names(variables)
+  names(var_units) <- names(variables)
+  names(var_longnames) <- names(variables)
   
   for (VAR in names(variables)) {
     paths <- variables[[VAR]]
@@ -180,6 +185,8 @@ preprocess_climate_data <- function(domain_path, remove_temp = TRUE,
       r.rs <- crop(r.rs, buffered_3km)
     }
     final_path <- file.path(clim_folder, paste0(mhm_varnames[[VAR]], ".nc"))
+    longname = var_longnames[[VAR]]
+    units = var_units[[VAR]]
     if (fix.negatives){
       if (mhm_varnames[[VAR]] %in% c("pre","pet")){
         cat("Fixing negative values...\n")
@@ -245,13 +252,15 @@ preprocess_climate_data <- function(domain_path, remove_temp = TRUE,
 #' @param remove_temp Logical. Remove temporary files on exit.
 #' @param iter_num Number of iterations for gap filling.
 #' @param crop_to_roi Logical. Crop LAI to ROI before resampling.
+#' @param force.fill Logical. Force replacing of NA values after filling and 
+#' masks to roi
 #'
 #' @return Path to the generated NetCDF file is printed to the console.
 #'
 #' @examples
 #' preprocess_LAI_data("/path/to/domain")
 preprocess_LAI_data = function(domain_path, remove_temp = FALSE, iter_num = 10,
-                               crop_to_roi = TRUE){
+                               crop_to_roi = TRUE, force.fill = FALSE){
   library(terra)
   library(sf)
   library(jsonlite)
@@ -283,7 +292,7 @@ preprocess_LAI_data = function(domain_path, remove_temp = FALSE, iter_num = 10,
   bbox = st_buffer(box, dist = 5000)
   # === Load LAI raster ===
   lai <- rast(lai_path)
-  lai
+  
   # Clip LAI to ROI if requested
   if (crop_to_roi) {
     lai_clipped <- crop(lai, vect(bbox))
@@ -307,6 +316,11 @@ preprocess_LAI_data = function(domain_path, remove_temp = FALSE, iter_num = 10,
   names(lai_rs) = paste0("lai_",1:12)
   lai_rs
   NAflag(lai_rs) = -9999
+  if (force.fill){
+    rast.roi = rasterize(vect(roi), ref)
+    lai_rs[is.na(lai_rs)] = 0
+    lai_rs = mask(lai_rs, rast.roi)
+  }
   writeCDF(lai_rs,
            filename = netcdf_path,
            varname = "lai",
@@ -401,7 +415,7 @@ preprocess_dem_data<- function(domain_path, remove_temp = FALSE,
                                       out_pntr = fdir, 
                                       out_accum = facc, 
                                       out_type = "cells",
-                                      esri_pntr = TRUE, verbose_mode = TRUE)
+                                      esri_pntr = TRUE, verbose_mode = FALSE)
   
   slope = file.path(temp_folder, "slope.tif")
   wbt_slope(dem = filled_dem, output = slope)
@@ -743,22 +757,6 @@ preprocess_soil_data = function(domain_path, remove_temp = FALSE, iter_num = 10,
   bulkd_r = reproject_to_mhm_morph(rast(bulkd_files))
   clay_r = reproject_to_mhm_morph(rast(clay_files))
   sand_r = reproject_to_mhm_morph(rast(sand_files))
-
-
-#' Repeat a focal mean filter
-#'
-#' @param r A [`terra::rast`] object.
-#' @param n Number of iterations.
-#' @return Raster with gaps filled.
-#' @keywords internal
-  focal_repeat = function(r, n){
-    if (n != 0){
-      r = terra::focal(x = r, w = 3, fun = "mean", na.rm = TRUE, na.policy = "only")
-      return(focal_repeat(r, n-1))
-    }else{
-      return(r)
-    }
-  }
   
   bulkd_filled = focal_repeat(bulkd_r, iter_num)
   # plot(bulkd_r)
@@ -810,7 +808,7 @@ preprocess_soil_data = function(domain_path, remove_temp = FALSE, iter_num = 10,
   all_soil = mask(all_soil, soil.mask)
   
   data.depths = get_combinations(all_soil)
-  glimpse(data.depths)
+  # glimpse(data.depths)
   
   # contar combinaciones presentes
   comb.data <- data.depths %>% group_by_all() %>% count() %>% drop_na()
@@ -877,7 +875,7 @@ preprocess_soil_data = function(domain_path, remove_temp = FALSE, iter_num = 10,
   names(imgs)
   for (i in 1:6) {
     # i = 1
-    print(i)
+    # print(i)
     img <- imgs[[i]]
     rr <- c(rr, img)
   }
@@ -900,7 +898,7 @@ preprocess_soil_data = function(domain_path, remove_temp = FALSE, iter_num = 10,
 #'
 #' @param config_path Path to the configuration file.
 #' @param remove_temp Logical. Remove temporary files when finished.
-#' @param basin.mask If `TRUE`, clip outputs to the basin polygon.
+#' @param basin.mask If `TRUE`, mask outputs to the basin polygon.
 #'
 #' @examples
 #' create_roi_mask("/path/to/domain/preprocess_config.json")
@@ -988,7 +986,6 @@ preprocess_streamflow_data = function(domain_path, remove_temp = FALSE,
   library(jsonlite)
   library(lubridate)
   library(tidyverse)
-  
   # === Load configuration ===
   config_path <- file.path(domain_path, "preprocess_config.json")
   config <- fromJSON(config_path)
@@ -1001,8 +998,8 @@ preprocess_streamflow_data = function(domain_path, remove_temp = FALSE,
   
   # Find gauges inside roi
   roi = read_sf(roi_file)
-  gauges = read_sf(gauges_file) %>% st_transform(crs = st_crs(roi))
-
+  gauges = read_csv(gauges_file) %>% st_as_sf(coords = c("LON","LAT"), crs = 4326)
+  
   if (crop_to_roi) {
     gauge_list = as.character(st_intersection(roi, gauges)$ID)
     cat(length(gauge_list),"Gauge stations found inside ROI: ", paste(gauge_list, collapse = ", "))

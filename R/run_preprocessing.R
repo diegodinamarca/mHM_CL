@@ -21,7 +21,7 @@ source("scripts/R/utils.R")
 source("scripts/R/preprocess_forcings.R")
 
 # 1.set the path for the domain where all outputs will be written
-domain_path = "/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/domain_zone_5"
+domain_path = "/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/domain_zone_3"
 
 # set up virtual environment with python packages.
 # Recommended: use a virtual environment with mhm installation
@@ -47,9 +47,10 @@ dir.create(file.path(domain_path, config$gauge_folder), showWarnings = FALSE)
 
 
 # Process climate data
-preprocess_climate_data(domain_path, remove_temp = TRUE, large.raster = FALSE, fix.negatives = TRUE)
+preprocess_climate_data(domain_path, remove_temp = TRUE, large.raster = FALSE,
+                        fix.negatives = TRUE, time_origin = config$start_date)
 # Process lai data
-preprocess_LAI_data(domain_path, remove_temp = TRUE, iter_num = 10)
+preprocess_LAI_data(domain_path, remove_temp = TRUE, iter_num = 10, force.fill = TRUE)
 # Process dem data
 preprocess_dem_data(domain_path, remove_temp = TRUE)
 # Process landcover data

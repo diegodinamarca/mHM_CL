@@ -5,9 +5,9 @@
   "geo_file": "./DATA/SHP/Geologia/Geologia_completo.geojson",
   "geo_file_global": "./DATA/RAST/Geology/glim_wgs84_0point5deg.txt.asc",
   "soil_folder": "./DATA/RAST/Soil/SoilMaps_MEAN",
-  "roi_file": "DATA/SHP/Cuencas_BNA/zonification_wgs84/zone_2.geojson",
+  "roi_file": "DATA/SHP/Cuencas_BNA/zonification_wgs84/zone_1.geojson",
   "hydro_network_file": "./DATA/SHP/red_hidro/Red_Hidrografica_Final.shp",
-  "fluv_station_file": "./DATA/SHP/est_fluv/gauge_station_coords.geojson",
+  "fluv_station_file": "./DATA/TABLE/catchment_gauge_coords.csv",
   "streamflow_data_file": "./DATA/SHP/Cuencas/CAMELS_CL_v202201/q_m3s_day.csv",
   "variables_clim": {
     "pr": {
@@ -38,17 +38,12 @@
   "meteo_folder": "./meteo",
   "lai_folder": "./lai",
   "lc_folder": "./landcover",
-  "gauge_list": ["8105001", "8104001", "00555"],
   "gauge_folder": "./gauges",
-  "burn_network": false,
-  "projected_crs": 32718,
   "latlon_crs": 4326,
   "cellsize": 0.001953125,
-  "remove_temp": false,
   "start_date": "1960-01-01",
   "end_date": "2021-12-31",
   "cellsize_clim":  0.03125,
-  "cellunit": "degrees",
-  "calibrate_model": false
-}
+  "calibrate_model": true
+  }
 

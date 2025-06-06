@@ -42,19 +42,26 @@ def update_calibrate_option(domain_path):
         print(f"Error reading or backing up NML: {e}")
         return
 
-    # Get optimize value from JSON
+    # Parse and coerce 'calibrate_model'
     optimize_flag = config.get("calibrate_model", False)
-    optimize_str = '.true.' if optimize_flag else '.false.'
+    if isinstance(optimize_flag, str):
+        optimize_flag = optimize_flag.strip().lower() == "true"
+    elif not isinstance(optimize_flag, bool):
+        optimize_flag = False
 
-    # Define new section
+    print("From JSON: calibrate_model =", config.get("calibrate_model"))
+    print("Used optimize =", optimize_flag)
+
+
+    # Define new section (use Python True/False for booleans!)
     new_mainconfig_mhm_mrm = {
         "mhm_file_restartin(1)": "test_domain/restart/",
         "mrm_file_restartin(1)": "test_domain/restart/",
         "resolution_routing(1)": 0.03125,
         "timestep": 1,
-        "read_restart": ".false.",
-        "optimize": optimize_str,
-        "optimize_restart": ".false.",
+        "read_restart": False,
+        "optimize": optimize_flag,
+        "optimize_restart": False,
         "opti_method": 1,
         "opti_function": 2
     }
@@ -68,3 +75,4 @@ def update_calibrate_option(domain_path):
         print(f"&mainconfig_mhm_mrm section updated in: {nml_path}")
     except Exception as e:
         print(f"Error writing updated NML: {e}")
+
