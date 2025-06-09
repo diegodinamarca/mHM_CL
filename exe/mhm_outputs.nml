@@ -37,7 +37,7 @@ timeStep_model_outputs = -2
 outputFlxState(1)=.FALSE.
 !
 ! height of snowpack                          (L1_snowpack)  [mm]    -- case  2
-outputFlxState(2)=.FALSE.
+outputFlxState(2)=.TRUE.
 !
 ! soil water content in the single layers     (L1_soilMoist)         -- case  3
 outputFlxState(3)=.FALSE.
@@ -61,7 +61,7 @@ outputFlxState(7)=.FALSE.
 !
 ! waterdepth in reservoir of sat. soil zone   (L1_satSTW)    [mm]    -- case  8
 ! --> level of GW reservoir
-outputFlxState(8)=.FALSE.
+outputFlxState(8)=.TRUE.
 ! Ground albedo neutrons related to soil moisture
 ! THIS IS WORK IN PROGRESS, DO NOT USE FOR RESEARCH
 outputFlxState(18)=.FALSE.

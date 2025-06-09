@@ -7,7 +7,7 @@
   "soil_folder": "./DATA/RAST/Soil/SoilMaps_MEAN",
   "roi_file": "DATA/SHP/Cuencas_BNA/zonification_wgs84/zone_1.geojson",
   "hydro_network_file": "./DATA/SHP/red_hidro/Red_Hidrografica_Final.shp",
-  "fluv_station_file": "./DATA/TABLE/catchment_gauge_coords.csv",
+  "fluv_station_file": "./DATA/TABLE/est_fluv/catchment_gauge_coords.csv",
   "streamflow_data_file": "./DATA/SHP/Cuencas/CAMELS_CL_v202201/q_m3s_day.csv",
   "variables_clim": {
     "pr": {

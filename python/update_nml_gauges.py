@@ -21,28 +21,30 @@ def update_evaluation_gauges(domain_path):
     temp_folder = os.path.join(exe_folder, "temp")
     os.makedirs(temp_folder, exist_ok=True)
 
-    nml_path = os.path.join(exe_folder, 'mhm.nml')  # Replace with your .nml filename
-    
+    nml_path = os.path.join(exe_folder, 'mhm.nml')
     backup_path = os.path.join(temp_folder, os.path.basename(nml_path))
     shutil.copy2(nml_path, backup_path)
     print(f"Backup of the original .nml file created at: {backup_path}")
-    
-    
+
     # Read the existing namelist
     nml = f90nml.read(nml_path)
 
-    # Retrieve the list of .day files in the gauges directory
-    gauge_files = [f for f in os.listdir(gauges_folder) if f.endswith('.day')]
-    gauge_files.sort()  # Optional: sort the files for consistent ordering
-
-    # Extract gauge IDs from filenames
+    # Retrieve and sort .day gauge files
+    gauge_files = sorted([f for f in os.listdir(gauges_folder) if f.endswith('.day')])
     gauge_ids = [int(os.path.splitext(f)[0]) for f in gauge_files]
 
-    # Update the evaluation_gauges section
-    nml['evaluation_gauges']['ngaugestotal'] = len(gauge_ids)
-    nml['evaluation_gauges']['nogauges_domain'] = 1
-    nml['evaluation_gauges']['gauge_id'] = gauge_ids
-    nml['evaluation_gauges']['gauge_filename'] = gauge_files
+    # Create Fortran-style keys
+    gauge_id_keys = {f"gauge_id(1,{i+1})": gauge_ids[i] for i in range(len(gauge_ids))}
+    gauge_filename_keys = {f"gauge_filename(1,{i+1})": gauge_files[i] for i in range(len(gauge_files))}
 
-    # Write the updated namelist back to the file
+    # Replace the evaluation_gauges section
+    nml["evaluation_gauges"] = {
+        "ngaugestotal": len(gauge_ids),
+        "nogauges_domain(1)": len(gauge_ids),
+        **gauge_id_keys,
+        **gauge_filename_keys
+    }
+
+    # Write the updated namelist
     nml.write(nml_path, force=True)
+    print(f"Updated mhm.nml with {len(gauge_ids)} gauges.")

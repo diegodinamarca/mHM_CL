@@ -49,10 +49,10 @@ def update_time_periods(domain_path):
     # Create clean &time_periods section
     new_time_periods = {
         "warming_days(1)": 1100,
-        "eval_per(1)%ystart": start_date.year,
+        "eval_per(1)%ystart": start_date.year+5,
         "eval_per(1)%mstart": start_date.month,
         "eval_per(1)%dstart": start_date.day,
-        "eval_per(1)%yend": end_date.year+5,
+        "eval_per(1)%yend": end_date.year,
         "eval_per(1)%mend": end_date.month,
         "eval_per(1)%dend": end_date.day,
     }

@@ -154,7 +154,7 @@ preprocess_climate_data <- function(domain_path, remove_temp = TRUE,
   mhm_varnames <- c("pre", "tmin", "tmax", "tavg", "pet")
   var_units <- c("mm","degC","degC","degC","mm")
   var_longnames <- c("Precipitation","Min. temperature","Max. temperature",
-                     "Potential evapotranspiration")
+                     "Average Temperature","Potential evapotranspiration")
   
   names(mhm_varnames) <- names(variables)
   names(var_units) <- names(variables)
@@ -1093,9 +1093,9 @@ create_idgauges = function(domain_path, remove_temp = FALSE){
     str_sub(end = -5) %>% 
     as.numeric()
   
-  gauges = read_sf(gauge_file) %>% 
-    filter(ID %in% gauge_list) %>% 
-    st_transform(4326)
+  gauges = read_csv(gauge_file) %>%
+    st_as_sf(coords = c("LON","LAT"), crs = 4326) %>% 
+    filter(ID %in% gauge_list)
   
   # === Load reference raster ===
   ref_path <- file.path(meteo_folder, "pre.nc")

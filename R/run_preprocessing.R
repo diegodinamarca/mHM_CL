@@ -21,7 +21,7 @@ source("scripts/R/utils.R")
 source("scripts/R/preprocess_forcings.R")
 
 # 1.set the path for the domain where all outputs will be written
-domain_path = "/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/domain_zone_3"
+domain_path = "/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/domain_zone_7"
 
 # set up virtual environment with python packages.
 # Recommended: use a virtual environment with mhm installation
@@ -35,6 +35,7 @@ use_python("/Users/mhm/miniforge3/envs/mhm_env/bin/python", required = TRUE)
 # The configuration file must be inside the domain_path
 config_path <- file.path(domain_path, "preprocess_config.json")
 config = read_json(config_path)
+
 # Create folders inside the domain for writing outputs
 dir.create(file.path(domain_path, config$out_folder), showWarnings = FALSE)
 dir.create(file.path(domain_path, config$header_folder), showWarnings = FALSE)
@@ -87,4 +88,4 @@ update_evaluation_gauges(domain_path)
 update_time_periods(domain_path)
 # add an option to calibrate the model modifying mhm.nml
 update_calibrate_option(domain_path)
-# Shuffle initial parameter values
+# PENDING - Shuffle initial parameter values
