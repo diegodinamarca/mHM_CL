@@ -52,6 +52,13 @@ write_output <- function(domain_path, var_name, ts,
     r <- daily_to_monthly(r, fun = "mean")
   } else if (ts == "year") {
     r <- monthly_to_yearly(r, fun = "mean")
+    idx <- format(time(r), "%Y-%m")
+    r <- tapp(r, idx, fun = mean, na.rm = TRUE)
+    time(r) <- as.Date(paste0(unique(idx), "-01"))
+  } else if (ts == "year") {
+    idx <- format(time(r), "%Y")
+    r <- tapp(r, idx, fun = mean, na.rm = TRUE)
+    time(r) <- as.Date(paste0(unique(idx), "-01-01"))
   }
 
   out_dir <- file.path(domain_path, "OUT", var_name)
@@ -61,6 +68,14 @@ write_output <- function(domain_path, var_name, ts,
     fname <- file.path(out_dir, paste0(var_name, ".tif"))
     writeRaster(r, fname, overwrite = TRUE)
     paths <- fname
+    paths <- vector("character", nlyr(r))
+    for (i in seq_len(nlyr(r))) {
+      suffix <- if (ts == "month") "%Y_%m" else "%Y"
+      dstr <- format(time(r)[i], suffix)
+      fname <- file.path(out_dir, paste0(var_name, "_", dstr, ".tif"))
+      writeRaster(r[[i]], fname, overwrite = TRUE)
+      paths[i] <- fname
+    }
   } else {
     fname <- file.path(out_dir, paste0(var_name, ".nc"))
     writeCDF(r, filename = fname, varname = var_name, overwrite = TRUE)
