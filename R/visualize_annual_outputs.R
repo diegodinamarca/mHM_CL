@@ -15,7 +15,6 @@
 visualize_annual_outputs <- function(domain_path, mask_roi = FALSE){
   library(terra)
   library(jsonlite)
-  browser()
   roi <- NULL
   if (mask_roi) {
     config_path <- file.path(domain_path, "preprocess_config.json")
