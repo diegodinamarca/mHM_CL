@@ -5,7 +5,7 @@
   "geo_file": "./DATA/SHP/Geologia/Geologia_completo.geojson",
   "geo_file_global": "./DATA/RAST/Geology/glim_wgs84_0point5deg.txt.asc",
   "soil_folder": "./DATA/RAST/Soil/SoilMaps_MEAN",
-  "roi_file": "DATA/SHP/Cuencas_BNA/zonification_wgs84/zone_1.geojson",
+  "roi_file": "DATA/SHP/Cuencas_BNA/zonification_mergecamels/zone_1.geojson",
   "hydro_network_file": "./DATA/SHP/red_hidro/Red_Hidrografica_Final.shp",
   "fluv_station_file": "./DATA/TABLE/est_fluv/catchment_gauge_coords.csv",
   "streamflow_data_file": "./DATA/SHP/Cuencas/CAMELS_CL_v202201/q_m3s_day.csv",
