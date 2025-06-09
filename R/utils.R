@@ -1,3 +1,12 @@
+#' Get bounding box polygon of an ROI
+#'
+#' Constructs a polygon from the bounding box of the provided
+#' region of interest (ROI).
+#'
+#' @param roi An [`sf`] object representing the ROI.
+#'
+#' @return An [`sf`] polygon representing the ROI extent in EPSG:4326.
+#' @keywords internal
 get_extent <- function(roi) {
   box = st_bbox(roi)
   box.m = as.matrix(rbind(
@@ -10,6 +19,15 @@ get_extent <- function(roi) {
   box.pol = st_polygon(list(box.m)) %>% st_sfc(crs = 4326)
 }
 
+#' Iterative focal mean filter
+#'
+#' Applies a 3x3 mean filter recursively `n` times.
+#'
+#' @param r A [`terra::rast`] object to smooth.
+#' @param n Integer. Number of iterations to apply.
+#'
+#' @return Smoothed [`terra::rast`] object.
+#' @keywords internal
 focal_repeat = function(r, n){
   if (n != 0){
     r = terra::focal(x = r, w = 3, fun = "mean", na.rm = TRUE, na.policy = "only")
@@ -19,6 +37,16 @@ focal_repeat = function(r, n){
   }
 }
 
+#' Extract header from an ESRI ASCII file
+#'
+#' Reads the first six lines of a `.asc` raster file and writes them
+#' to `header_morph.txt` in the specified output folder.
+#'
+#' @param asc_file Path to the input `.asc` file.
+#' @param output_folder Directory where the header file will be created.
+#'
+#' @return Invisibly returns `NULL`. The header file is written to disk.
+#' @keywords internal
 extract_asc_header <- function(asc_file, output_folder) {
   # Check if input file exists
   if (!file.exists(asc_file)) {
@@ -122,3 +150,4 @@ monthly_to_yearly <- function(r, fun = c("mean", "sum")) {
   time(yearly) <- as.Date(paste0(names(idx), "-01-01"))
   yearly
 }
+

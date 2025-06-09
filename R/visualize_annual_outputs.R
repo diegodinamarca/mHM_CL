@@ -1,4 +1,31 @@
 
+#' Compute annual mean across years
+#'
+#' Summarizes a SpatRaster with monthly layers by first aggregating to yearly
+#' values using either the sum or mean of the months, and then averaging across
+#' all available years.
+#'
+#' @param r A [`terra::SpatRaster`] with a monthly time dimension.
+#' @param fun Character. Either "mean" or "sum" specifying how to aggregate the
+#'   months of each year.
+#' @return A single-layer SpatRaster representing the long term annual mean.
+#' @export
+annual_mean <- function(r, fun = c("mean", "sum")) {
+  fun <- match.arg(fun)
+  tvec <- terra::time(r)
+  years <- format(tvec, "%Y")
+  idx <- split(seq_along(years), years)
+  yearly <- lapply(idx, function(i) {
+    if (fun == "sum") {
+      sum(r[[i]], na.rm = TRUE)
+    } else {
+      mean(r[[i]], na.rm = TRUE)
+    }
+  })
+  yearly <- rast(yearly)
+  mean(yearly, na.rm = TRUE)
+}
+
 #' Visualize annual mean model outputs and forcings
 #'
 #' Reads the standard mHM NetCDF outputs together with precipitation and
@@ -33,6 +60,11 @@ visualize_annual_outputs <- function(domain_path, mask_roi = FALSE) {
     }
     roi <- vect(roi_path)
   }
+#' @examples
+#' visualize_annual_outputs("/path/to/domain")
+#' @export
+visualize_annual_outputs <- function(domain_path) {
+  library(terra)
 
   out_file <- file.path(domain_path, "OUT", "mHM_Fluxes_States.nc")
   meteo_folder <- file.path(domain_path, "meteo")
@@ -71,6 +103,15 @@ visualize_annual_outputs <- function(domain_path, mask_roi = FALSE) {
     snow_ann <- mask(snow_ann, roi)
     sat_ann <- mask(sat_ann, roi)
   }
+
+  pre_ann <- annual_mean(pre, "sum")
+  pet_ann <- annual_mean(pet, "sum")
+  aet_ann <- annual_mean(aet, "sum")
+  runoff_ann <- annual_mean(runoff, "sum")
+
+  snow_ann <- annual_mean(snowpack, "mean")
+  sm_ann <- annual_mean(soilmoist, "mean")
+  sat_ann <- annual_mean(satstw, "mean")
 
   flux_range <- range(c(values(pre_ann), values(pet_ann),
                         values(aet_ann), values(runoff_ann)), na.rm = TRUE)
