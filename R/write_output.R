@@ -49,6 +49,9 @@ write_output <- function(domain_path, var_name, ts,
   }
 
   if (ts == "month") {
+    r <- daily_to_monthly(r, fun = "mean")
+  } else if (ts == "year") {
+    r <- monthly_to_yearly(r, fun = "mean")
     idx <- format(time(r), "%Y-%m")
     r <- tapp(r, idx, fun = mean, na.rm = TRUE)
     time(r) <- as.Date(paste0(unique(idx), "-01"))
@@ -62,6 +65,9 @@ write_output <- function(domain_path, var_name, ts,
   dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 
   if (out.format == "tif") {
+    fname <- file.path(out_dir, paste0(var_name, ".tif"))
+    writeRaster(r, fname, overwrite = TRUE)
+    paths <- fname
     paths <- vector("character", nlyr(r))
     for (i in seq_len(nlyr(r))) {
       suffix <- if (ts == "month") "%Y_%m" else "%Y"
