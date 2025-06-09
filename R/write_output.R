@@ -52,13 +52,6 @@ write_output <- function(domain_path, var_name, ts,
     r <- daily_to_monthly(r, fun = "mean")
   } else if (ts == "year") {
     r <- monthly_to_yearly(r, fun = "mean")
-    idx <- format(time(r), "%Y-%m")
-    r <- tapp(r, idx, fun = mean, na.rm = TRUE)
-    time(r) <- as.Date(paste0(unique(idx), "-01"))
-  } else if (ts == "year") {
-    idx <- format(time(r), "%Y")
-    r <- tapp(r, idx, fun = mean, na.rm = TRUE)
-    time(r) <- as.Date(paste0(unique(idx), "-01-01"))
   }
 
   out_dir <- file.path(domain_path, "OUT", var_name)
