@@ -58,19 +58,12 @@ write_output <- function(domain_path, var_name, ts,
   dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 
   if (out.format == "tif") {
-    fname <- file.path(out_dir, paste0(var_name, ".tif"))
+    fname <- file.path(out_dir, paste0(var_name,"_",ts,".tif"))
     writeRaster(r, fname, overwrite = TRUE)
     paths <- fname
     paths <- vector("character", nlyr(r))
-    for (i in seq_len(nlyr(r))) {
-      suffix <- if (ts == "month") "%Y_%m" else "%Y"
-      dstr <- format(time(r)[i], suffix)
-      fname <- file.path(out_dir, paste0(var_name, "_", dstr, ".tif"))
-      writeRaster(r[[i]], fname, overwrite = TRUE)
-      paths[i] <- fname
-    }
   } else {
-    fname <- file.path(out_dir, paste0(var_name, ".nc"))
+    fname <- file.path(out_dir, paste0(var_name,"_",ts,".nc"))
     writeCDF(r, filename = fname, varname = var_name, overwrite = TRUE)
     paths <- fname
   }
