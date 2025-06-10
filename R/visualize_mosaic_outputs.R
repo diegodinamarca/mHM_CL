@@ -43,6 +43,7 @@ load_mosaic_annual_means <- function(out_dir, vars = NULL, roi_file = NULL) {
     fun <- if (v %in% c("aET", "Q", "pre", "pet")) "sum" else "mean"
     ann <- annual_mean(r, fun)
     if (!is.null(roi)) {
+      ann <- crop(ann, roi)
       ann <- mask(ann, roi)
     }
     out[[v]] <- ann
