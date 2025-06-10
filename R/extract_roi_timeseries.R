@@ -29,7 +29,7 @@ extract_roi_timeseries <- function(nc_path, var_name, roi_file, out_file = NULL)
   roi <- vect(roi_file)
   r <- mask(r, roi)
 
-  means <- as.numeric(global(r, fun = "mean", na.rm = TRUE))
+  means <- global(r, fun = "mean", na.rm = TRUE)$mean
   tvec <- terra::time(r)
   df <- data.frame(time = tvec, mean = means)
 
@@ -58,7 +58,7 @@ extract_roi_timeseries <- function(nc_path, var_name, roi_file, out_file = NULL)
 extract_roi_timeseries_all <- function(nc_path, roi_file, out_file = NULL) {
   library(terra)
   library(ncdf4)
-
+  
   if (!file.exists(nc_path)) {
     stop("NetCDF not found: ", nc_path)
   }
@@ -68,20 +68,20 @@ extract_roi_timeseries_all <- function(nc_path, roi_file, out_file = NULL) {
 
   nc <- ncdf4::nc_open(nc_path)
   on.exit(ncdf4::nc_close(nc))
+  # vars <- c
   vars <- names(nc$var)
 
   roi <- vect(roi_file)
   all_means <- list()
   time_vec <- NULL
-
+  r <- rast(nc_path)
+  time_vec <- as.Date(terra::time(r))
+  
   for (v in vars) {
     r <- rast(nc_path, subds = v)
     r <- mask(r, roi)
 
-    means <- as.numeric(global(r, fun = "mean", na.rm = TRUE))
-    if (is.null(time_vec)) {
-      time_vec <- terra::time(r)
-    }
+    means <- global(r, fun = "mean", na.rm = TRUE)$mean
     all_means[[v]] <- means
   }
 
@@ -93,3 +93,4 @@ extract_roi_timeseries_all <- function(nc_path, roi_file, out_file = NULL) {
 
   invisible(df)
 }
+
