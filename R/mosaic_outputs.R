@@ -186,3 +186,4 @@ visualize_meteo_mosaic <- function(domains = NULL,
 
   invisible(mosaics)
 }
+

@@ -51,19 +51,20 @@ visualize_annual_outputs <- function(domain_path, mask_roi = FALSE){
   aet_ann <- annual_mean(aet, "sum")
   message("Processing runoff")
   runoff_ann <- annual_mean(runoff, "sum")
-
+  
   message("Processing soil moisture")
   sm_ann <- annual_mean(soilmoist, "mean")
   message("Processing snowpack")
   snow_ann <- annual_mean(snowpack, "mean")
   message("Processing groundwater level")
   sat_ann <- annual_mean(satstw, "mean")
-
   if (!is.null(roi)) {
     pre_ann <- mask(pre_ann, roi)
     pet_ann <- mask(pet_ann, roi)
     aet_ann <- mask(aet_ann, roi)
     runoff_ann <- mask(runoff_ann, roi)
+    disp_ann = pre_ann - aet_ann
+    
     sm_ann <- mask(sm_ann, roi)
     snow_ann <- mask(snow_ann, roi)
     sat_ann <- mask(sat_ann, roi)
@@ -76,13 +77,14 @@ visualize_annual_outputs <- function(domain_path, mask_roi = FALSE){
 
   op <- par(no.readonly = TRUE)
   on.exit(par(op))
-  par(mfrow = c(2, 4), mar = c(4, 4, 2, 5))
+  par(mfrow = c(2, 5), mar = c(4, 4, 2, 5))
 
   plot(pre_ann, main = "Precipitation", zlim = flux_range)
   plot(pet_ann, main = "Potential ET", zlim = flux_range)
   plot(aet_ann, main = "Actual ET", zlim = flux_range)
   plot(runoff_ann, main = "Runoff", zlim = flux_range)
-
+  plot(disp_ann, main = "Pr-ET", zlim = flux_range)
+  
   plot(sm_ann, main = "Soil moisture", zlim = state_range)
   plot(snow_ann, main = "Snowpack", zlim = state_range)
   plot(sat_ann, main = "GW level", zlim = state_range)
