@@ -39,3 +39,57 @@ extract_roi_timeseries <- function(nc_path, var_name, roi_file, out_file = NULL)
 
   invisible(df)
 }
+
+#' Extract ROI mean time series for all variables
+#'
+#' Computes the spatial mean inside a region of interest (ROI) for
+#' every variable available in `mHM_Fluxes_States.nc`.
+#'
+#' @param nc_path Path to `mHM_Fluxes_States.nc`.
+#' @param roi_file Path to a vector file representing the ROI.
+#' @param out_file Optional path to write the resulting CSV. If `NULL`, the
+#'   data frame is returned invisibly.
+#'
+#' @return A data frame with a `time` column and one column per variable.
+#' @examples
+#' extract_roi_timeseries_all("domain/OUT/mHM_Fluxes_States.nc",
+#'                            roi_file = "domain/roi.shp")
+#' @export
+extract_roi_timeseries_all <- function(nc_path, roi_file, out_file = NULL) {
+  library(terra)
+  library(ncdf4)
+
+  if (!file.exists(nc_path)) {
+    stop("NetCDF not found: ", nc_path)
+  }
+  if (!file.exists(roi_file)) {
+    stop("ROI file not found: ", roi_file)
+  }
+
+  nc <- ncdf4::nc_open(nc_path)
+  on.exit(ncdf4::nc_close(nc))
+  vars <- names(nc$var)
+
+  roi <- vect(roi_file)
+  all_means <- list()
+  time_vec <- NULL
+
+  for (v in vars) {
+    r <- rast(nc_path, subds = v)
+    r <- mask(r, roi)
+
+    means <- as.numeric(global(r, fun = "mean", na.rm = TRUE))
+    if (is.null(time_vec)) {
+      time_vec <- terra::time(r)
+    }
+    all_means[[v]] <- means
+  }
+
+  df <- data.frame(time = time_vec, all_means)
+
+  if (!is.null(out_file)) {
+    write.csv(df, out_file, row.names = FALSE)
+  }
+
+  invisible(df)
+}
