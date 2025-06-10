@@ -9,3 +9,5 @@ Para visualizar promedios anuales de largo plazo de las salidas y forzantes del 
 En [`R/utils.R`](R/utils.R) se encuentran algunas funciones utiles para la ejecucion del pre y post procesamiento.
 
 La función `write_output` permite exportar variables mensuales o anuales a TIFF o NetCDF desde el output del modelo `mHM_Fluxes_States.nc`. El resultado es un único archivo con una banda por cada periodo de tiempo solicitado.
+
+Para visualizar promedios anuales de los archivos mosaiceados se puede utilizar el script [`R/visualize_mosaic_outputs.R`](R/visualize_mosaic_outputs.R). Este script permite seleccionar un archivo de ROI para enmascarar los resultados.
