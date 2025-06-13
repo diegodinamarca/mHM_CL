@@ -47,3 +47,8 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+# Machine-generated files
+__pycache__/
+*.pyc
+.DS_Store
