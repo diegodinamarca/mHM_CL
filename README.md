@@ -19,3 +19,5 @@ domain_folders <- dir(pattern = "domain_zone", full.names = TRUE)
 visualize_mosaic_full_outputs(out_dir = "domain_chile/OUT",
                               domains = domain_folders)
 ```
+
+ La función `process_meteo_variable` permite procesar las forzantes meteorológicas diarias almacenadas en la carpeta `meteo`. El flujo calcula una sola vez los valores mensuales y luego utiliza ese resultado para obtener los datos anuales y el promedio anual de largo plazo. Durante la ejecución se muestran mensajes que indican cada etapa del proceso. Los archivos resultantes se escriben en `out/meteo/<var_name>`.
