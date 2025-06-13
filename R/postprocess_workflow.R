@@ -16,7 +16,7 @@ domain_path = "/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/domain_zone_2"
 config_path <- file.path(domain_path, "preprocess_config.json")
 config = read_json(config_path)
 
-for (i in 6:7){
+for (i in 1:7){
   domain_path = paste0("/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/domain_zone_",i)
   process_meteo_variable(domain_path = domain_path, var_name = "pre", roi_mask = TRUE)
   process_meteo_variable(domain_path = domain_path, var_name = "pet", roi_mask = TRUE)
