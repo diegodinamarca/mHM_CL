@@ -1,8 +1,11 @@
+# -------------------------------------------------------------
+# Preprocess forcing data for mHM.
+# Place `preprocess_config.json` inside the folder pointed to by
+# `domain_path` and ensure `use_python()` references an mHM-enabled
+# Python environment.
+# Run with: source("R/run_preprocessing.R")
+# -------------------------------------------------------------
 
-# main script
-
-# the purpose of this script is to proces the forcings and create the inputs for
-# running the mHM model
 # List of required packages
 required_packages <- c(
   "reticulate", "jsonlite", "terra", "sf", "magrittr", 
