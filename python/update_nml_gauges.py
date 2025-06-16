@@ -12,6 +12,21 @@ import json
 import shutil
 
 def update_evaluation_gauges(domain_path):
+    """Update the evaluation gauge list inside ``mhm.nml`` for a domain.
+
+    Parameters
+    ----------
+    domain_path : str
+        Path to the domain directory containing ``preprocess_config.json`` and
+        gauge files.
+
+    Returns
+    -------
+    None
+        The function modifies ``mhm.nml`` by injecting gauge IDs and filenames
+        and saves a backup of the original file.
+    """
+
     config_path = os.path.join(domain_path, "preprocess_config.json")
     with open(config_path, "r") as f:
         config = json.load(f)

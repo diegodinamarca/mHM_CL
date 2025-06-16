@@ -4,6 +4,21 @@ import json
 import re
 
 def write_geoparam_block(domain_path):
+    """Create a GeoParam block from geology definitions and write it to disk.
+
+    Parameters
+    ----------
+    domain_path : str
+        Path to the domain folder containing ``preprocess_config.json`` and
+        subfolders referenced within that configuration.
+
+    Returns
+    -------
+    None
+        The function writes ``geoparameter_block.nml`` inside the ``exe``
+        directory and prints the path to the created file.
+    """
+
     # === Load config to get folders ===
     config_path = os.path.join(domain_path, "preprocess_config.json")
 
