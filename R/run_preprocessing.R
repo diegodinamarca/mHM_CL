@@ -17,11 +17,11 @@ if (length(new_packages)) install.packages(new_packages)
 lapply(required_packages, library, character.only = TRUE)
 
 #Load helper functions
-source("scripts/R/utils.R")
-source("scripts/R/preprocess/preprocess_forcings.R")
+source("R/utils.R")
+source("R/preprocess/preprocess_forcings.R")
 
 # 1.set the path for the domain where all outputs will be written
-domain_path = "/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/domain_zone_2"
+domain_path = "../domain_zone_2"
 
 # set up virtual environment with python packages.
 # Recommended: use a virtual environment with mhm installation
@@ -68,12 +68,12 @@ preprocess_streamflow_data(domain_path, remove_temp = TRUE)
 create_idgauges(domain_path, remove_temp = TRUE)
 
 # Load python functions
-source_python("/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/SCRIPTS/python/run_create_latlon.py")
-source_python("/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/SCRIPTS/python/create_geoparameter_block.py")
-source_python("/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/SCRIPTS/python/modify_parameters_with_geoblock.py")
-source_python("/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/SCRIPTS/python/update_nml_gauges.py")
-source_python("/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/SCRIPTS/python/update_time_periods.py")
-source_python("/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/SCRIPTS/python/calibrate_model_option.py")
+source_python("python/run_create_latlon.py")
+source_python("python/create_geoparameter_block.py")
+source_python("python/modify_parameters_with_geoblock.py")
+source_python("python/update_nml_gauges.py")
+source_python("python/update_time_periods.py")
+source_python("python/calibrate_model_option.py")
 
 # Call the function defined in the Python script
 # create latlon.nc

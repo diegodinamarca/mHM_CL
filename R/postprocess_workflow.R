@@ -1,23 +1,15 @@
-file = "/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/domain_zone_1/OUT/mHM_Fluxes_States.nc"
-library(ncdf4)
-library(terra)
-library(jsonlite)
-x = nc_open(file)
-x
-nc_close(x)
-
-
-source("scripts/r/utils.r")
-list.files("scripts/r/postprocess", full.names = TRUE)
+source("R/utils.r")
+source("R/postprocess/postprocessing_utils.r")
 
 # 1.set the path for the domain where all outputs will be written
-domain_path = "/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/domain_zone_2"
+domain_path = "../domain_zone_2"
+
 # The configuration file must be inside the domain_path
 config_path <- file.path(domain_path, "preprocess_config.json")
 config = read_json(config_path)
 
 for (i in 1:7){
-  domain_path = paste0("/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/domain_zone_",i)
+  domain_path = paste0("../domain_zone_",i)
   process_meteo_variable(domain_path = domain_path, var_name = "pre", roi_mask = TRUE)
   process_meteo_variable(domain_path = domain_path, var_name = "pet", roi_mask = TRUE)
 }
@@ -26,16 +18,22 @@ for (i in 1:7){
 visualize_annual_outputs(domain_path, mask_roi = TRUE)
 
 # extraer y escribir un archivo nc de una variable
-variables = c("snowpack","SM_Lall","satSTW","aET","Q")
-write_output(domain_path, var_name = variables[2], ts = "year", roi_mask = TRUE)
-
+for (i in 1:7){
+  domain_path = paste0("../domain_zone_",i)
+  print(domain_path)
+  for (j in 1:5){
+    variables = c("snowpack","SM_Lall","satSTW","aET","Q")
+    print(variables[j])
+    write_output(domain_path, var_name = variables[j], ts = "month", roi_mask = TRUE)
+  }
+}
 # lista de dominios (zonification of chile)
 domain_folders = dir(pattern = "domain_zone", full.names = TRUE)
 domain_folders
 # Mosaic outputs across domains
 mosaic_outputs(domain_folders)
 # visualize mosaic outputs
-visualize_mosaic_outputs("domain_chile/OUT")
+# visualize_mosaic_outputs("domain_chile/OUT")
 
 # custom roi
 basin = "/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_snow/DATA/SHP/cau_basin.geojson"
