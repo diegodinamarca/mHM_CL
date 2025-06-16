@@ -1,12 +1,7 @@
 source("R/utils.r")
 source("R/postprocess/postprocessing_utils.r")
 
-# 1.set the path for the domain where all outputs will be written
-domain_path = "../domain_zone_2"
 
-# The configuration file must be inside the domain_path
-config_path <- file.path(domain_path, "preprocess_config.json")
-config = read_json(config_path)
 
 for (i in 1:7){
   domain_path = paste0("../domain_zone_",i)
@@ -14,6 +9,8 @@ for (i in 1:7){
   process_meteo_variable(domain_path = domain_path, var_name = "pet", roi_mask = TRUE)
 }
 
+# set the path for the domain
+domain_path = "../domain_zone_2"
 # visualizar todos los outputs y forcings de un domain
 visualize_annual_outputs(domain_path, mask_roi = TRUE)
 
