@@ -4,7 +4,9 @@ Este repositorio contiene utilidades en R y Python para preparar los datos de en
 
 Para una explicación detallada de cómo ejecutar el script principal de preprocesamiento consulte [run_preprocessing.md](run_preprocessing.md).
 
-Para visualizar promedios anuales de largo plazo de las salidas y forzantes del modelo se incluye el script [`R/visualize_annual_outputs.R`](R/visualize_annual_outputs.R). 
+Para visualizar promedios anuales de largo plazo de las salidas y forzantes del modelo se incluye el script [`R/visualize_annual_outputs.R`](R/visualize_annual_outputs.R).
+
+La función `visualize_annual_outputs` permite opcionalmente entregar la ruta de un archivo ROI mediante el argumento `roi_file` para recortar y enmascarar los resultados a dicha zona en lugar de utilizar el ROI definido en la configuración.
 
 En [`R/utils.R`](R/utils.R) se encuentran algunas funciones utiles para la ejecucion del pre y post procesamiento.
 
