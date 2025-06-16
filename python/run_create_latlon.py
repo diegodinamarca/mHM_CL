@@ -11,6 +11,21 @@ import json
 import subprocess
 
 def run_create_latlon(domain_path):
+    """Execute the ``create_latlon.py`` script for a given domain.
+
+    Parameters
+    ----------
+    domain_path : str
+        Path to the domain folder where ``preprocess_config.json`` and the
+        header files reside.
+
+    Returns
+    -------
+    None
+        The function spawns a subprocess that generates ``latlon.nc`` in the
+        configured output directory.
+    """
+
     config_path = os.path.join(domain_path, "preprocess_config.json")
 
     with open(config_path, "r") as f:

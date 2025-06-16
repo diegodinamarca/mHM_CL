@@ -202,12 +202,41 @@ import os
 
 # Step 1: Load exe_folder from config
 def get_exe_folder(config_path="preprocess_config_windows.json"):
+    """Return the ``exe_folder`` path from a preprocessing configuration file.
+
+    Parameters
+    ----------
+    config_path : str, optional
+        Path to the JSON configuration file. Defaults to
+        ``"preprocess_config_windows.json"``.
+
+    Returns
+    -------
+    str
+        The ``exe_folder`` location defined inside the configuration file.
+    """
+
     with open(config_path, "r") as f:
         config = json.load(f)
     return config["exe_folder"]
 
 # Step 2: Randomize value field in parameter tuples
 def randomize_mhm_values(nml_dict):
+    """Randomize parameter values within the provided namelist dictionary.
+
+    Parameters
+    ----------
+    nml_dict : dict
+        Dictionary representing the ``mhm_parameter.nml`` structure. Tuples of the
+        form ``(lb, ub, value, flag, scaling)`` are expected for each parameter.
+
+    Returns
+    -------
+    None
+        The dictionary is modified in place with new random values sampled from
+        the lower and upper bounds.
+    """
+
     for block, params in nml_dict.items():
         for key, val in params.items():
             if isinstance(val, tuple) and len(val) == 5:
@@ -222,7 +251,24 @@ def randomize_mhm_values(nml_dict):
 
 # Step 3: Write to NML file
 def write_nml_from_dict(nml_dict, output_path):
+    """Write the provided namelist dictionary to an ``.nml`` file.
+
+    Parameters
+    ----------
+    nml_dict : dict
+        Dictionary with the same structure as ``mhm_parameter.nml``.
+    output_path : str
+        Destination path for the generated NML file.
+
+    Returns
+    -------
+    None
+        The function creates or overwrites ``output_path`` with the formatted
+        namelist content.
+    """
+
     def fmt(x, width=10, prec=4):
+        """Format numbers or strings for consistent column width."""
         return f"{x:>{width}.{prec}f}" if isinstance(x, float) else f"{x:>{width}}"
 
     with open(output_path, "w") as f:

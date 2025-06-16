@@ -12,6 +12,21 @@ import re
 import json
 
 def update_geoparam_block(domain_path):
+    """Replace the &geoparameter block in ``mhm_parameter.nml``.
+
+    Parameters
+    ----------
+    domain_path : str
+        Path to the domain directory containing ``preprocess_config.json`` as
+        well as the morphology and ``exe`` folders referenced therein.
+
+    Returns
+    -------
+    None
+        The function updates ``mhm_parameter.nml`` in place, backing up the
+        original file and printing information about the modifications.
+    """
+
     # === Load config ===
     config_path = os.path.join(domain_path, "preprocess_config.json")
 
