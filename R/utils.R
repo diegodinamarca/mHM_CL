@@ -455,15 +455,24 @@ write_output <- function(domain_path, var_name, ts,
 #'   folders.
 #' @param mask_roi Logical. If `TRUE`, the outputs are masked using the
 #'   `roi_file` specified in `preprocess_config.json` located inside
-#'   `domain_path`.
+#'   `domain_path` or the file provided via `roi_file`.
+#' @param roi_file Optional path to a ROI file. When supplied, the outputs are
+#'   cropped and masked to this ROI instead of the one defined in the
+#'   configuration file.
 #' @examples
 #' visualize_annual_outputs("/path/to/domain")
 #' @export
-visualize_annual_outputs <- function(domain_path, mask_roi = FALSE){
+visualize_annual_outputs <- function(domain_path, mask_roi = FALSE,
+                                     roi_file = NULL){
   library(terra)
   library(jsonlite)
   roi <- NULL
-  if (mask_roi) {
+  if (!is.null(roi_file)) {
+    if (!file.exists(roi_file)) {
+      stop("ROI file not found: ", roi_file)
+    }
+    roi <- vect(roi_file)
+  } else if (mask_roi) {
     config_path <- file.path(domain_path, "preprocess_config.json")
     if (!file.exists(config_path)) {
       stop("Configuration file not found: ", config_path)
@@ -506,16 +515,28 @@ visualize_annual_outputs <- function(domain_path, mask_roi = FALSE){
   message("Processing groundwater level")
   sat_ann <- annual_mean(satstw, "mean")
   if (!is.null(roi)) {
+    if (!is.null(roi_file)) {
+      pre_ann <- crop(pre_ann, roi)
+      pet_ann <- crop(pet_ann, roi)
+      aet_ann <- crop(aet_ann, roi)
+      runoff_ann <- crop(runoff_ann, roi)
+
+      sm_ann <- crop(sm_ann, roi)
+      snow_ann <- crop(snow_ann, roi)
+      sat_ann <- crop(sat_ann, roi)
+    }
+
     pre_ann <- mask(pre_ann, roi)
     pet_ann <- mask(pet_ann, roi)
     aet_ann <- mask(aet_ann, roi)
     runoff_ann <- mask(runoff_ann, roi)
-    disp_ann = pre_ann - aet_ann
-    
+
     sm_ann <- mask(sm_ann, roi)
     snow_ann <- mask(snow_ann, roi)
     sat_ann <- mask(sat_ann, roi)
   }
+
+  disp_ann <- pre_ann - aet_ann
   
   flux_range <- range(c(values(pre_ann), values(pet_ann),
                         values(aet_ann), values(runoff_ann)), na.rm = TRUE)

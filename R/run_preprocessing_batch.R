@@ -1,6 +1,10 @@
-# Batch version of run_preprocessing.R
-# Usage: Rscript R/run_preprocessing_batch.R /path/to/domain
-# This script allows setting the domain path from the command line.
+# -------------------------------------------------------------
+# Batch preprocessing for mHM.
+# Expects `preprocess_config.json` inside the domain folder supplied
+# as a command-line argument and a Python environment referenced in
+# `use_python()`.
+# Usage: Rscript R/run_preprocessing_batch.R <domain_path>
+# -------------------------------------------------------------
 
 # List of required packages
 required_packages <- c(
