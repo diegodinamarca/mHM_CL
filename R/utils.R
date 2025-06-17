@@ -158,7 +158,9 @@ monthly_to_yearly <- function(r, fun = c("mean", "sum")) {
 #'
 #' @param nc_path Path to `mHM_Fluxes_States.nc`.
 #' @param var_name Name of the variable to extract.
-#' @param roi_file Path to a vector file representing the ROI.
+#' @param roi_file Either a path to a vector file or a [`terra::SpatVector`]
+#'   representing the ROI. If polygons are provided, the mean value inside each
+#'   polygon is extracted. For points, the value at each point is returned.
 #' @param out_file Optional path to write the resulting CSV. If `NULL`, the
 #'   data frame is returned invisibly.
 #'
@@ -170,21 +172,40 @@ monthly_to_yearly <- function(r, fun = c("mean", "sum")) {
 #' @export
 extract_roi_timeseries <- function(nc_path, var_name, roi_file, out_file = NULL) {
   library(terra)
-  
+
   if (!file.exists(nc_path)) {
     stop("NetCDF not found: ", nc_path)
   }
-  if (!file.exists(roi_file)) {
-    stop("ROI file not found: ", roi_file)
+
+  if (inherits(roi_file, "SpatVector")) {
+    roi <- roi_file
+  } else if (is.character(roi_file)) {
+    if (!file.exists(roi_file)) {
+      stop("ROI file not found: ", roi_file)
+    }
+    roi <- vect(roi_file)
+  } else {
+    stop("`roi_file` must be a path or a SpatVector object")
   }
-  
+
   r <- rast(nc_path, subds = var_name)
-  roi <- vect(roi_file)
-  r <- mask(r, roi)
-  
-  means <- global(r, fun = "mean", na.rm = TRUE)$mean
+  geom <- unique(geomtype(roi))
+  if (length(geom) != 1) {
+    stop("ROI must contain a single geometry type")
+  }
+
+  if (geom == "points") {
+    vals <- extract(r, roi, ID = FALSE)
+  } else if (geom %in% c("polygons", "lines")) {
+    vals <- extract(r, roi, fun = mean, na.rm = TRUE, ID = FALSE)
+  } else {
+    stop("Unsupported geometry type: ", geom)
+  }
+
+  vals <- t(as.matrix(vals))
   tvec <- terra::time(r)
-  df <- data.frame(time = tvec, mean = means)
+  df <- data.frame(time = tvec, vals)
+  colnames(df)[-1] <- paste0("roi", seq_len(ncol(vals)))
   
   if (!is.null(out_file)) {
     write.csv(df, out_file, row.names = FALSE)
@@ -199,7 +220,9 @@ extract_roi_timeseries <- function(nc_path, var_name, roi_file, out_file = NULL)
 #' every variable available in `mHM_Fluxes_States.nc`.
 #'
 #' @param nc_path Path to `mHM_Fluxes_States.nc`.
-#' @param roi_file Path to a vector file representing the ROI.
+#' @param roi_file Either a path to a vector file or a [`terra::SpatVector`]
+#'   representing the ROI. If polygons are provided, the mean value inside each
+#'   polygon is extracted. For points, the value at each point is returned.
 #' @param out_file Optional path to write the resulting CSV. If `NULL`, the
 #'   data frame is returned invisibly.
 #'
@@ -211,34 +234,51 @@ extract_roi_timeseries <- function(nc_path, var_name, roi_file, out_file = NULL)
 extract_roi_timeseries_all <- function(nc_path, roi_file, out_file = NULL) {
   library(terra)
   library(ncdf4)
-  
+
   if (!file.exists(nc_path)) {
     stop("NetCDF not found: ", nc_path)
   }
-  if (!file.exists(roi_file)) {
-    stop("ROI file not found: ", roi_file)
+
+  if (inherits(roi_file, "SpatVector")) {
+    roi <- roi_file
+  } else if (is.character(roi_file)) {
+    if (!file.exists(roi_file)) {
+      stop("ROI file not found: ", roi_file)
+    }
+    roi <- vect(roi_file)
+  } else {
+    stop("`roi_file` must be a path or a SpatVector object")
   }
-  
+
+  geom <- unique(geomtype(roi))
+  if (length(geom) != 1) {
+    stop("ROI must contain a single geometry type")
+  }
+
   nc <- ncdf4::nc_open(nc_path)
   on.exit(ncdf4::nc_close(nc))
-  # vars <- c
   vars <- names(nc$var)
-  
-  roi <- vect(roi_file)
-  all_means <- list()
-  time_vec <- NULL
+
   r <- rast(nc_path)
   time_vec <- as.Date(terra::time(r))
-  
+  res_list <- list()
+
   for (v in vars) {
     r <- rast(nc_path, subds = v)
-    r <- mask(r, roi)
-    
-    means <- global(r, fun = "mean", na.rm = TRUE)$mean
-    all_means[[v]] <- means
+    if (geom == "points") {
+      vals <- extract(r, roi, ID = FALSE)
+    } else if (geom %in% c("polygons", "lines")) {
+      vals <- extract(r, roi, fun = mean, na.rm = TRUE, ID = FALSE)
+    } else {
+      stop("Unsupported geometry type: ", geom)
+    }
+    vals <- t(as.matrix(vals))
+    colnames(vals) <- paste0(v, "_roi", seq_len(ncol(vals)))
+    res_list[[v]] <- vals
   }
-  
-  df <- data.frame(time = time_vec, all_means)
+
+  res_mat <- do.call(cbind, res_list)
+  df <- data.frame(time = time_vec, res_mat)
   
   if (!is.null(out_file)) {
     write.csv(df, out_file, row.names = FALSE)
