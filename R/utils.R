@@ -567,10 +567,12 @@ get_scale_lim = function(r, round.digit = 0){
 }
 
 
-plot_raster_facet <- function(r, depth, var, limits, facet_col = "attributes") {
+plot_raster_facet <- function(r, var, limits, facet_col = "attributes") {
+  library(stars)
+  library(cowplot)
   color.scale = scale_fill_distiller(type = "seq", palette = 16, direction = 1,
                                      na.value = "transparent", 
-                                     name = str_c(var),
+                                     name = var,
                                      limits = limits,
                                      oob = scales::squish)
   stars_r = stars::st_as_stars(r)
@@ -584,10 +586,10 @@ plot_raster_facet <- function(r, depth, var, limits, facet_col = "attributes") {
   
 }
 
-plot_raster <- function(r, depth, var, limits, palette = 16) {
+plot_raster <- function(r, var, limits, palette = 16) {
   color.scale = scale_fill_distiller(type = "seq", palette = palette, direction = 1,
                                      na.value = "transparent", 
-                                     name = str_c(var," ",depth),
+                                     name = var,
                                      limits = limits,
                                      oob = scales::squish)
   ggplot() +
@@ -598,9 +600,228 @@ plot_raster <- function(r, depth, var, limits, palette = 16) {
     theme(legend.title = element_text(size = 12))
 }
 
-theme_grid = theme(
-  panel.background = element_rect(fill = "snow", ),
-  panel.grid = element_line(color = "grey"),
-  plot.background = element_rect(fill = "white"))
+
+get_qmm_table <- function(domain_path, crop_to_roi = TRUE) {
+  library(terra)
+  library(sf)
+  library(jsonlite)
+  library(tidyverse)
+
+  # === Load config and paths ===
+  config_path <- file.path(domain_path, "preprocess_config.json")
+  config <- read_json(config_path)
+  
+  streamflow_data_file <- config$streamflow_data_file_mm
+  gauges_file <- config$fluv_station_file
+  roi_file <- config$roi_file
+  gauge_folder <- file.path(domain_path, config$gauge_folder)
+  nc_path <- file.path(domain_path, config$out_folder, "mHM_Fluxes_States.nc")
+  
+  # === Read spatial data ===
+  roi <- read_sf(roi_file)
+  gauges <- read_csv(gauges_file) %>%
+    st_as_sf(coords = c("LON", "LAT"), crs = 4326)
+  
+  # === Filter gauges by ROI if needed ===
+  if (crop_to_roi) {
+    gauge_list <- as.character(st_intersection(roi, gauges)$ID)
+    message(length(gauge_list), " gauge stations found in ROI: ", paste(gauge_list, collapse = ", "))
+  } else {
+    gauge_list <- as.character(gauges$ID)
+    message(length(gauge_list), " gauge stations used: ", paste(gauge_list, collapse = ", "))
+  }
+  
+  gauges_roi <- gauges %>% filter(ID %in% gauge_list)
+  
+  # === Read Q simulation from NetCDF ===
+  nc <- rast(nc_path, subds = "Q")
+  names(nc) <- as.character(time(nc))  # Assign date names to layers
+  
+  val <- terra::extract(nc, gauges_roi)
+  val$ID <- gauges_roi$ID
+  
+  df_sim <- val %>%
+    as_tibble() %>%
+    pivot_longer(cols = -ID, names_to = "date", values_to = "Q_sim") %>%
+    mutate(date = as.Date(date))
+  
+  # === Read CAMELS observation ===
+  df_obs <- read_csv(streamflow_data_file) %>%
+    select(date, all_of(gauge_list)) %>%
+    pivot_longer(cols = -date, names_to = "ID", values_to = "Q_obs") %>%
+    mutate(ID = as.numeric(ID), date = as.Date(date))
+  
+  # === Join simulated and observed ===
+  df <- full_join(df_sim, df_obs, by = c("ID", "date"))
+  
+  return(df)
+}
+
+get_qm3s_table <- function(nc_path) {
+  library(tidyverse)
+  library(ncdf4)
+  
+  nc <- nc_open(nc_path)
+  on.exit(nc_close(nc))
+  
+  # Extract and convert time
+  time <- ncvar_get(nc, "time")
+  time_units <- ncatt_get(nc, "time", "units")$value
+  origin <- str_extract(time_units, "\\d{4}-\\d{2}-\\d{2}")
+  dates <- as.Date(time / 24, origin = origin)  # assuming time is in hours
+  
+  # Get variable names
+  var_names <- names(nc$var)
+  sim_vars <- var_names[str_detect(var_names, "^Qsim_")]
+  obs_vars <- var_names[str_detect(var_names, "^Qobs_")]
+  
+  # Extract gauge IDs
+  sim_ids <- str_remove(sim_vars, "^Qsim_")
+  obs_ids <- str_remove(obs_vars, "^Qobs_")
+  common_ids <- intersect(sim_ids, obs_ids)
+  
+  # Function to extract time series
+  extract_ts <- function(var) {
+    vals <- ncvar_get(nc, var)
+    vals[vals == -9999] <- NA
+    vals
+  }
+  
+  # Combine all into tibble
+  result <- purrr::map_dfr(common_ids, function(id) {
+    qsim <- extract_ts(paste0("Qsim_", id))
+    qobs <- extract_ts(paste0("Qobs_", id))
+    tibble(
+      ID = as.numeric(id),
+      date = dates,
+      Q_sim = as.numeric(qsim),
+      Q_obs = as.numeric(qobs)
+    )
+  })
+  
+  return(result)
+}
+
+# Function to calculate error metrics
+calculate_error_metrics <- function(obs, sim, norm = "sd") {
+  # browser()
+  N <- length(obs)
+  bias <- mean(sim - obs)
+  pbias <- hydroGOF::pbias(sim, obs)
+  r2 <- hydroGOF::R2(sim, obs)
+  rmse <- hydroGOF::rmse(sim, obs)
+  ubrmse <- hydroGOF::ubRMSE(sim, obs)
+  nrmse <- hydroGOF::nrmse(sim, obs, norm = norm)
+  nse <-hydroGOF::NSE(sim, obs)
+  kge_components <- hydroGOF::KGE(sim, obs, method="2009", out.type = "full")
+  kge <- kge_components$KGE.value
+  alpha <- kge_components$KGE.elements[["Alpha"]]
+  beta <- kge_components$KGE.elements[["Beta"]]
+  r <- kge_components$KGE.elements[["r"]]
+  mae <- hydroGOF::mae(sim, obs)
+  hbe <- (sum(sim)-sum(obs))/sum(obs)
+  return(tibble(
+    kge = kge,
+    r2 = r2,
+    bias = bias,
+    pbias = pbias,
+    rmse = rmse,
+    ubrmse = ubrmse,
+    nrmse = nrmse,
+    nse = nse,
+    alpha = alpha,
+    beta = beta,
+    hbe = hbe,
+    r = r,
+    mae = mae,
+    N = N
+  ))
+}
 
 
+
+evaluate_station_metrics <- function(df,
+                                     config_path = "preprocess_config.json",
+                                     start_date = as.Date("1980-01-01"),
+                                     end_date = as.Date("2020-12-31"),
+                                     out_folder = NULL,
+                                     av_threshold = 80) {
+  # Read config file
+  config <- jsonlite::read_json(config_path)
+  
+  calculate_non_na_percentage <- function(df, start_date = as.Date("1980-01-01"), end_date = as.Date("2020-12-31")) {
+    df %>%
+      filter(date >= start_date & date <= end_date) %>%
+      group_by(ID) %>%
+      summarise(
+        total = n(),
+        non_na_Q_obs_mm = sum(!is.na(Q_obs_mm)),
+        non_na_Q_sim_mm = sum(!is.na(Q_sim_mm)),
+        non_na_Q_obs_m3s = sum(!is.na(Q_obs_m3s)),
+        non_na_Q_sim_m3s = sum(!is.na(Q_sim_m3s)),
+        .groups = "drop"
+      ) %>%
+      mutate(
+        perc_Q_obs_mm = 100 * non_na_Q_obs_mm / total,
+        perc_Q_sim_mm = 100 * non_na_Q_sim_mm / total,
+        perc_Q_obs_m3s = 100 * non_na_Q_obs_m3s / total,
+        perc_Q_sim_m3s = 100 * non_na_Q_sim_m3s / total
+      ) %>%
+      select(ID, starts_with("perc_"))
+  }
+  # Calculate non-NA percentages (assumes the function is defined elsewhere)
+  perc <- calculate_non_na_percentage(df)
+  selected_gauges <- perc %>%
+    filter(perc_Q_obs_m3s > av_threshold) %>%
+    pull(ID)
+  
+  # Filter and compute metrics (assumes calculate_error_metrics() is defined)
+  metrics <- df %>%
+    filter(!is.na(Q_obs_m3s)) %>%
+    filter(date >= start_date, date <= end_date) %>%
+    filter(ID %in% selected_gauges) %>%
+    group_by(ID) %>%
+    do(calculate_error_metrics(.$Q_obs_m3s, .$Q_sim_m3s))
+  
+  # Read station coordinates from config
+  message("Reading config file. Fluvio stations coordinates read at: ", config_path)
+  fluv_station <- read_csv(config$fluv_station_file)
+  
+  # Join coordinates
+  metrics <- metrics %>%
+    left_join(fluv_station, by = "ID")
+  
+  # Optionally write output
+  if (!is.null(out_folder)) {
+    dir.create(out_folder, recursive = TRUE, showWarnings = FALSE)
+    write_csv(metrics, file.path(out_folder, "eval_metrics_stations.csv"))
+  }
+  
+  return(metrics)
+}
+
+plot_metric_map <- function(rast, metrics_sf, metric = "kge", metric_name = NULL,
+                            raster_name = NULL,
+                            raster_palette = "viridis", point_palette = "plasma") {
+  # scale_fill_viridis_c() and scale_color_viridis_c()
+  # support various palettes: "viridis", "magma", "plasma", "inferno", "cividis".
+  # Convert raster to stars object
+  stars_rast <- st_as_stars(rast)
+  if (is.null(metric_name)){
+    metric_name = metric
+  }
+  if (is.null(raster_name)){
+    raster_name = varnames(rast)
+  }
+  # Base plot
+  p <- ggplot() +
+    geom_stars(data = stars_rast, na.rm = TRUE) +
+    scale_fill_viridis_c(option = raster_palette, na.value = NA, name = raster_name) +
+    geom_sf(data = metrics_sf, aes_string(color = metric), size = 2, na.rm = TRUE) +
+    scale_color_viridis_c(option = point_palette, name = metric_name, na.value = NA) +
+    # theme_minimal() +
+    theme(legend.position = "right") +
+    labs(x = "Longitude", y = "Latitude")
+  
+  return(p)
+}

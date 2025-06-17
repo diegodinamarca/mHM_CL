@@ -4,10 +4,25 @@ library(stars)
 library(cowplot)
 source("R/utils.R")
 
-files = list.files("../domain_chile/OUT", full.names = TRUE, pattern = ".nc$")
+theme_grid = theme(
+  panel.background = element_rect(fill = "snow", ),
+  panel.grid = element_line(color = "grey"),
+  plot.background = element_rect(fill = "white"))
+
+
+# Mosaicked outputs 
+files.mosaic = list.files("../domain_chile/OUT", full.names = TRUE, pattern = ".nc$")
 var.names = str_sub(basename(files), end = -4)
 
-r.list = lapply(files, function(f){
+# Domain folders to look for meteo forcings in monthly timesteps
+domain_folders = dir("..", pattern = "domain_zone",  full.names = TRUE)
+in.folder = file.path(domain_folders, "out/meteo")
+files.domain = list.files(in.folder, full.names = TRUE) %>%
+  list.files(full.names = TRUE, pattern = "annual")
+files.domain
+
+
+r.list = lapply(files.mosaic, function(f){
   r = rast(f)
   vn = varnames(r)
   if (vn %in% c("aET","Q")){
@@ -18,17 +33,9 @@ r.list = lapply(files, function(f){
 })
 names(r.list) = var.names
 
-
-domain_folders = dir("..", pattern = "domain_zone",  full.names = TRUE)
-domain_folders
-
-in.folder = file.path(domain_folders, "out/meteo")
-files = list.files(in.folder, full.names = TRUE) %>%
-  list.files(full.names = TRUE, pattern = "annual")
-files
-
-pet.files = files[grep("pet", files)]
-pre.files = files[grep("pre", files)]
+# load and mosaic meteo forcings
+pet.files = files[grep("pet", files.domain)]
+pre.files = files[grep("pre", files.domain)]
 
 pet.list = lapply(pet.files, rast)
 pet = do.call(mosaic, pet.list)
@@ -38,6 +45,7 @@ pre.list = lapply(pre.files, rast)
 pre = do.call(mosaic, pre.list)
 varnames(pre) = "pre"
 
+# add to list of rasters
 r.list$pre = pre
 r.list$pet = pet
 r.list$`P-ET` = r.list$pre - r.list$aET
@@ -56,7 +64,7 @@ plot_from_list <- function(varname) {
   }else{
     limits <- get_scale_lim(r)
   }
-  plot_raster(r, depth = "", var = varname, limits = limits)
+  plot_raster(r, depth = "", var = str_c(varname, "[mm]"), limits = limits)
 }
 
 # Generate plots
