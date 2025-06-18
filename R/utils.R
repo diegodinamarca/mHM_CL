@@ -607,12 +607,23 @@ visualize_annual_outputs <- function(domain_path, mask_roi = FALSE,
 
 #' Get plotting limits for a raster
 #'
+#' Computes quantile-based limits of the raster values which are typically used
+#' to define the limits of a colour scale.
 #' Computes the 10\% and 90\% quantiles of the raster values which are
 #' typically used to define the limits of a colour scale.
 #'
 #' @param r A [`terra::SpatRaster`] object.
 #' @param round.digit Integer indicating the number of digits to round the
 #'   limits.
+#' @param lower.lim Numeric lower quantile used when computing limits.
+#' @param upper.lim Numeric upper quantile used when computing limits.
+#'
+#' @return Numeric vector of length two containing the lower and upper limits.
+#' @keywords internal
+get_scale_lim = function(r, round.digit = 0, lower.lim = 0.1, upper.lim = 0.9){
+  values(r) %>%
+    quantile(., c(lower.lim, upper.lim), na.rm = TRUE) %>%
+
 #'
 #' @return Numeric vector of length two containing the lower and upper limits.
 #' @keywords internal
