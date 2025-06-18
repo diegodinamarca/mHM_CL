@@ -605,18 +605,42 @@ visualize_annual_outputs <- function(domain_path, mask_roi = FALSE,
 }
 
 
-get_scale_lim = function(r, round.digit = 0){
+#' Get plotting limits for a raster
+#'
+#' Computes quantile-based limits of the raster values which are typically used
+#' to define the limits of a colour scale.
+#'
+#' @param r A [`terra::SpatRaster`] object.
+#' @param round.digit Integer indicating the number of digits to round the
+#'   limits.
+#' @param lower.lim Numeric lower quantile used when computing limits.
+#' @param upper.lim Numeric upper quantile used when computing limits.
+#'
+#' @return Numeric vector of length two containing the lower and upper limits.
+#' @keywords internal
+get_scale_lim = function(r, round.digit = 0, lower.lim = 0.1, upper.lim = 0.9){
   values(r) %>%
-    quantile(., c(0.1, 0.9), na.rm = TRUE) %>% 
+    quantile(., c(lower.lim, upper.lim), na.rm = TRUE) %>%
     round(., digits = round.digit)
 }
 
-
+#' Plot raster facets
+#'
+#' Displays multiple layers of a raster in a faceted layout with a common
+#' colour scale.
+#'
+#' @param r A [`terra::SpatRaster`] object.
+#' @param var Character. Title for the legend.
+#' @param limits Numeric vector providing the limits of the colour scale.
+#' @param facet_col Attribute column used to create the facets.
+#'
+#' @return A [`ggplot2::ggplot`] object.
+#' @keywords internal
 plot_raster_facet <- function(r, var, limits, facet_col = "attributes") {
   library(stars)
   library(cowplot)
   color.scale = scale_fill_distiller(type = "seq", palette = 16, direction = 1,
-                                     na.value = "transparent", 
+                                     na.value = "transparent",
                                      name = var,
                                      limits = limits,
                                      oob = scales::squish)
@@ -631,9 +655,20 @@ plot_raster_facet <- function(r, var, limits, facet_col = "attributes") {
   
 }
 
+#' Plot a single raster
+#'
+#' Creates a map of one raster layer using a sequential palette.
+#'
+#' @param r A [`terra::SpatRaster`] to plot.
+#' @param var Character string used as legend title.
+#' @param limits Numeric vector with limits for the colour scale.
+#' @param palette Integer palette number passed to `scale_fill_distiller`.
+#'
+#' @return A [`ggplot2::ggplot`] object.
+#' @keywords internal
 plot_raster <- function(r, var, limits, palette = 16) {
   color.scale = scale_fill_distiller(type = "seq", palette = palette, direction = 1,
-                                     na.value = "transparent", 
+                                     na.value = "transparent",
                                      name = var,
                                      limits = limits,
                                      oob = scales::squish)
@@ -646,6 +681,17 @@ plot_raster <- function(r, var, limits, palette = 16) {
 }
 
 
+#' Get monthly streamflow table in millimetres
+#'
+#' Reads simulated runoff from `mHM_Fluxes_States.nc` together with CAMELS
+#' observations and returns a table of monthly means.
+#'
+#' @param domain_path Path to the model domain directory.
+#' @param crop_to_roi Logical. If `TRUE`, only gauges inside the ROI defined in
+#'   `preprocess_config.json` are considered.
+#'
+#' @return A tibble with columns `ID`, `date`, `Q_sim` and `Q_obs`.
+#' @export
 get_qmm_table <- function(domain_path, crop_to_roi = TRUE) {
   library(terra)
   library(sf)
@@ -702,6 +748,16 @@ get_qmm_table <- function(domain_path, crop_to_roi = TRUE) {
   return(df)
 }
 
+#' Get monthly streamflow table in m\eqn{^3}/s
+#'
+#' Extracts simulated and observed discharge from a NetCDF file produced by the
+#' post-processing workflow.
+#'
+#' @param nc_path Path to the NetCDF file containing variables `Qsim_<id>` and
+#'   `Qobs_<id>`.
+#'
+#' @return A tibble with columns `ID`, `date`, `Q_sim` and `Q_obs`.
+#' @export
 get_qm3s_table <- function(nc_path) {
   library(tidyverse)
   library(ncdf4)
@@ -747,7 +803,18 @@ get_qm3s_table <- function(nc_path) {
   return(result)
 }
 
-# Function to calculate error metrics
+#' Calculate hydrological error metrics
+#'
+#' Computes a range of performance metrics comparing observed and simulated
+#' streamflow.
+#'
+#' @param obs Numeric vector of observations.
+#' @param sim Numeric vector of simulations.
+#' @param norm Character string passed to `hydroGOF::nrmse` indicating the
+#'   normalisation method.
+#'
+#' @return A tibble with one row containing the calculated metrics.
+#' @keywords internal
 calculate_error_metrics <- function(obs, sim, norm = "sd") {
   # browser()
   N <- length(obs)
@@ -785,6 +852,23 @@ calculate_error_metrics <- function(obs, sim, norm = "sd") {
 
 
 
+#' Evaluate streamflow metrics at gauge stations
+#'
+#' Calculates performance metrics for each gauge station in the supplied data
+#' frame and optionally writes the results to disk.
+#'
+#' @param df Data frame containing at least the columns `ID`, `date`,
+#'   `Q_obs_mm`, `Q_sim_mm`, `Q_obs_m3s` and `Q_sim_m3s`.
+#' @param config_path Path to `preprocess_config.json` with station metadata.
+#' @param start_date Start date of the evaluation period.
+#' @param end_date End date of the evaluation period.
+#' @param out_folder Optional output folder where the table of metrics is
+#'   written.
+#' @param av_threshold Minimum percentage of available observations required to
+#'   include a gauge.
+#'
+#' @return A tibble with the computed metrics and station coordinates.
+#' @export
 evaluate_station_metrics <- function(df,
                                      config_path = "preprocess_config.json",
                                      start_date = as.Date("1980-01-01"),
@@ -845,6 +929,21 @@ evaluate_station_metrics <- function(df,
   return(metrics)
 }
 
+#' Plot raster background with station metrics
+#'
+#' Generates a map showing a raster layer together with station performance
+#' metrics coloured by the chosen variable.
+#'
+#' @param rast A [`terra::SpatRaster`] used as background.
+#' @param metrics_sf An [`sf`] object containing the metric values.
+#' @param metric Name of the metric column to colour the points.
+#' @param metric_name Optional title for the point legend.
+#' @param raster_name Optional title for the raster legend.
+#' @param raster_palette Viridis palette used for the raster fill.
+#' @param point_palette Viridis palette used for the point colours.
+#'
+#' @return A [`ggplot2::ggplot`] object.
+#' @keywords internal
 plot_metric_map <- function(rast, metrics_sf, metric = "kge", metric_name = NULL,
                             raster_name = NULL,
                             raster_palette = "viridis", point_palette = "plasma") {
