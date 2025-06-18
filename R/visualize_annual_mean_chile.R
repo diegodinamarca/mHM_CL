@@ -49,12 +49,12 @@ varnames(pre) = "pre"
 r.list$pre = pre
 r.list$pet = pet
 r.list$`P-ET` = r.list$pre - r.list$aET
-r.list
+r.list$SM = r.list$SM_L01 + r.list$SM_L02 + r.list$SM_L03 + r.list$SM_L04 + r.list$SM_L05 + r.list$SM_L06 
 length(r.list)
 
 # Order and variable info
 order_top <- c("pre", "pet", "aET", "P-ET")
-order_bottom <- c("Q", "SM_Lall", "satSTW", "snowpack")
+order_bottom <- c("Q", "SM", "satSTW", "snowpack")
 
 # Helper function to plot one raster from the list
 plot_from_list <- function(varname) {
@@ -64,7 +64,15 @@ plot_from_list <- function(varname) {
   }else{
     limits <- get_scale_lim(r)
   }
-  plot_raster(r, depth = "", var = str_c(varname, "[mm]"), limits = limits)
+  legend.name = c("pre" = "Pr",
+                  "pet" = "PET",
+                  "aET" = "ET",
+                  "P-ET" = "Pr-ET",
+                  "Q" = "Q",
+                  "SM" = "SM",
+                  "satSTW" = "GW",
+                  "snowpack" = "Snow")
+  plot_raster(r, depth = "", var = str_c(legend.name[[varname]], "[mm]"), limits = limits)
 }
 
 # Generate plots
