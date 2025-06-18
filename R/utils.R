@@ -305,7 +305,8 @@ extract_roi_timeseries_all <- function(nc_path, roi_file, out_file = NULL) {
 #' @export
 mosaic_outputs <- function(domains = NULL,
                            out_dir = "domain_chile/OUT",
-                           vars = c("snowpack", "SM_Lall", "satSTW", "aET", "Q")) {
+                           vars = c("snowpack","SM_Lall","satSTW","aET","Q",
+                                    "SM_L01","SM_L02","SM_L03","SM_L04","SM_L05","SM_L06")) {
   library(terra)
   library(jsonlite)
   
@@ -463,7 +464,11 @@ write_output <- function(domain_path, var_name, ts,
   }
   
   if (ts == "month") {
-    r <- daily_to_monthly(r, fun = "mean")
+    if (var_name %in% c("aET","Q")){
+      r <- daily_to_monthly(r, fun = "sum")
+    }else{
+      r <- daily_to_monthly(r, fun = "mean")
+    }
   } else if (ts == "year") {
     r <- monthly_to_yearly(r, fun = "mean")
   }

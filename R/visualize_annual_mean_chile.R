@@ -12,7 +12,7 @@ theme_grid = theme(
 
 # Mosaicked outputs 
 files.mosaic = list.files("../domain_chile/OUT", full.names = TRUE, pattern = ".nc$")
-var.names = str_sub(basename(files), end = -4)
+var.names = str_sub(basename(files.mosaic), end = -4)
 
 # Domain folders to look for meteo forcings in monthly timesteps
 domain_folders = dir("..", pattern = "domain_zone",  full.names = TRUE)
