@@ -79,10 +79,9 @@ source_python("python/update_time_periods.py")
 source_python("python/calibrate_model_option.py")
 
 # Call the function defined in the Python script
-reticulate::py_run_string("import os; print(os.getlogin())")
 # create latlon.nc
 run_create_latlon(domain_path)
-system2("cp", args = c("~/Downloads/temp_latlon/latlon.nc", "/Volumes/KINGSTON/domain_7339001/latlon/"), stdout = TRUE, stderr = TRUE)
+# system2("cp", args = c("~/Downloads/temp_latlon/latlon.nc", "/Volumes/KINGSTON/domain_7339001/latlon/"), stdout = TRUE, stderr = TRUE)
 # write geoparameter block for mhm_parameter.nml
 write_geoparam_block(domain_path)
 # update mhm_parameter.nml with the geoparameter block

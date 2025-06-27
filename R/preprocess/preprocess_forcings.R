@@ -998,8 +998,8 @@ preprocess_streamflow_data = function(domain_path, remove_temp = FALSE,
   roi_file = config$roi_file
   gauge_folder <- file.path(domain_path, config$gauge_folder)
   dir.create(gauge_folder, showWarnings = FALSE, recursive = TRUE)
-  start_date = config$start_date
-  end_date = config$end_date
+  start_date = as.Date(config$start_date)
+  end_date = as.Date(config$end_date)
   
   
   # Find gauges inside roi
@@ -1022,7 +1022,7 @@ preprocess_streamflow_data = function(domain_path, remove_temp = FALSE,
   
   for (i in seq_along(gauge_list)) {
     gauge_id <- gauge_list[[i]]
-    print(gauge_id)
+    # print(gauge_id)
     if (!(gauge_id %in% colnames(df))) {
       cat(sprintf("Gauge ID %s not found in data.\n", gauge_id))
       next
@@ -1036,7 +1036,7 @@ preprocess_streamflow_data = function(domain_path, remove_temp = FALSE,
       next
     }
     
-    if (!is.null(start_date) | !is.null(end_date)){
+    if (is.null(start_date) | is.null(end_date)){
       start_date <- min(series_valid$Date)
       end_date <- max(series_valid$Date)
     }
