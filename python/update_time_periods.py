@@ -1,5 +1,5 @@
 import os
-import json
+import yaml
 import shutil
 import f90nml
 from dateutil import parser as date_parser
@@ -7,14 +7,14 @@ from dateutil import parser as date_parser
 def update_time_periods(domain_path):
     """
     Updates the &time_periods section in the mhm.nml file based on the start_date and end_date
-    specified in the preprocess_config.json file located in the domain_path.
+    specified in the preprocess_config.yaml file located in the domain_path.
 
     Parameters:
-    - domain_path (str): Path to the domain directory containing preprocess_config.json and the exe folder.
+    - domain_path (str): Path to the domain directory containing preprocess_config.yaml and the exe folder.
     """
 
     # Paths
-    config_path = os.path.join(domain_path, 'preprocess_config.json')
+    config_path = os.path.join(domain_path, 'preprocess_config.yaml')
     exe_path = os.path.join(domain_path, 'exe')
     nml_path = os.path.join(exe_path, 'mhm.nml')
     temp_dir = os.path.join(exe_path, 'temp')
@@ -25,7 +25,7 @@ def update_time_periods(domain_path):
     # Read config
     try:
         with open(config_path, 'r') as f:
-            config = json.load(f)
+            config = yaml.safe_load(f)
     except Exception as e:
         print(f"Error reading JSON: {e}")
         return

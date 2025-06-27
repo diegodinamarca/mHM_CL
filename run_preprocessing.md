@@ -4,12 +4,12 @@ Este script prepara todos los insumos necesarios para ejecutar el modelo mHM. A 
 
 ## Requisitos previos
 
-- **R** con los paquetes indicados en el propio script (`reticulate`, `jsonlite`, `terra`, `sf`, `magrittr`, `tidyverse`, `whitebox`, `lubridate`).
-- **Python** configurado dentro de un entorno virtual que incluya la instalación de mHM y los paquetes adicionales (`subprocess`, `os`, `json`, `re`).
+- **R** con los paquetes indicados en el propio script (`reticulate`, `yaml`, `terra`, `sf`, `magrittr`, `tidyverse`, `whitebox`, `lubridate`).
+- **Python** configurado dentro de un entorno virtual que incluya la instalación de mHM y los paquetes adicionales (`subprocess`, `os`, `pyyaml`, `re`).
 - **mHM** instalado en un entorno **conda**. Se recomienda seguir la [guía oficial](https://mhm-ufz.org/guides/) para completar la instalación.
-- Haber clonado el repositorio oficial de mHM para disponer del script `create_latlon.py` ubicado en `pre-proc`. En `preprocess_config.json` se debe definir la clave `"latlon_script_folder"` apuntando a esta carpeta.
-- Un archivo `preprocess_config.json` dentro de la carpeta del dominio donde se guardarán las salidas.
-- Para crear un nuevo dominio cree una carpeta (por ejemplo `new_domain`), copie allí `preprocess_config.json` con las rutas de las forzantes a procesar y especifique esta ruta en `run_preprocessing.R` mediante la variable `domain_path`.
+- Haber clonado el repositorio oficial de mHM para disponer del script `create_latlon.py` ubicado en `pre-proc`. En `preprocess_config.yaml` se debe definir la clave `"latlon_script_folder"` apuntando a esta carpeta.
+- Un archivo `preprocess_config.yaml` dentro de la carpeta del dominio donde se guardarán las salidas.
+- Para crear un nuevo dominio cree una carpeta (por ejemplo `new_domain`), copie allí `preprocess_config.yaml` con las rutas de las forzantes a procesar y especifique esta ruta en `run_preprocessing.R` mediante la variable `domain_path`.
 
 ## Uso básico
 
@@ -38,27 +38,26 @@ El script creará automáticamente las carpetas definidas en el archivo de confi
 
 ## Contenido del archivo de configuración
 
-El archivo `preprocess_config.json` define rutas de entrada y de salida, variables climáticas a procesar y parámetros espaciales. Un ejemplo reducido es el siguiente:
+El archivo `preprocess_config.yaml` define rutas de entrada y de salida, variables climáticas a procesar y parámetros espaciales. Un ejemplo reducido es el siguiente:
 
-```json
-{
-  "dem_file": "./DATA/RAST/Topography/DEM.tif",
-  "roi_file": "./DATA/SHP/roi.geojson",
-  "variables_clim": {
-    "pr": {"input_dir": "./DATA/RAST/Clim/Pr"},
-    "tmax": {"input_dir": "./DATA/RAST/Clim/Tmax"}
-  },
-  "out_folder": "./OUT",
-  "meteo_folder": "./meteo",
-  "lai_folder": "./lai"
-}
+```yaml
+dem_file: ./DATA/RAST/Topography/DEM.tif
+roi_file: ./DATA/SHP/roi.geojson
+variables_clim:
+  pr:
+    input_dir: ./DATA/RAST/Clim/Pr
+  tmax:
+    input_dir: ./DATA/RAST/Clim/Tmax
+out_folder: ./OUT
+meteo_folder: ./meteo
+lai_folder: ./lai
 ```
 
 Cada función de preprocesamiento utilizará estas rutas para leer datos de entrada y escribir los resultados correspondientes.
 
 ## Salidas generadas
 
-Al finalizar la ejecución se habrán creado, dentro de la carpeta del dominio, las siguientes subcarpetas principales (según lo definido en el JSON de configuración):
+Al finalizar la ejecución se habrán creado, dentro de la carpeta del dominio, las siguientes subcarpetas principales (según lo definido en el YAML de configuración):
 
 - `meteo/` – Archivos NetCDF con las variables meteorológicas recortadas.
 - `lai/` – Series temporales de índice de área foliar.
@@ -72,4 +71,4 @@ Estas salidas son los insumos necesarios para lanzar corridas de mHM posteriorme
 
 - Revise los mensajes de consola para verificar el progreso de cada etapa.
 - Si alguna función genera archivos temporales, puede eliminarlos automáticamente estableciendo `remove_temp = TRUE` en las llamadas del script.
-- El script asume que las rutas de entrada definidas en `preprocess_config.json` existen y contienen los datos requeridos.
+- El script asume que las rutas de entrada definidas en `preprocess_config.yaml` existen y contienen los datos requeridos.
