@@ -560,6 +560,8 @@ preprocess_geo_data <- function(domain_path, remove_temp = FALSE, source.file = 
   library(terra)
   library(sf)
   library(jsonlite)
+  
+  sf_use_s2(FALSE)
   # leer archivo de configuracion json con rutas de archivos
   config_path <- file.path(domain_path, "preprocess_config.json")
   config <- fromJSON(config_path)
@@ -585,13 +587,11 @@ preprocess_geo_data <- function(domain_path, remove_temp = FALSE, source.file = 
     geo <- st_read(geo_file, quiet = TRUE)
 
     # Recortar geología a la extensión de la ROI if requested
-    sf_use_s2(FALSE)
     if (crop_to_roi) {
       geo_clipped <- st_crop(geo, bbox)
     } else {
       geo_clipped <- geo
     }
-    sf_use_s2(TRUE)
     
     # Crear LUT para 'cd_geol' (string → número)
     unique_vals <- sort(unique(na.omit(geo_clipped$cd_geol)))
@@ -652,7 +652,7 @@ preprocess_geo_data <- function(domain_path, remove_temp = FALSE, source.file = 
     writeRaster(reclassified, geology_class_path, overwrite = TRUE, NAflag = -9999,
                 datatype = "INT4S")
     cat("Process completed: geology raster generated from global raster (GLiM).\n")
-    
+    sf_use_s2(TRUE)
   }
   # Guardar LUT
   lut_df <- data.frame(
@@ -986,6 +986,9 @@ preprocess_streamflow_data = function(domain_path, remove_temp = FALSE,
   library(jsonlite)
   library(lubridate)
   library(tidyverse)
+  # browser()
+  sf_use_s2(FALSE)
+  
   # === Load configuration ===
   config_path <- file.path(domain_path, "preprocess_config.json")
   config <- fromJSON(config_path)
@@ -995,6 +998,9 @@ preprocess_streamflow_data = function(domain_path, remove_temp = FALSE,
   roi_file = config$roi_file
   gauge_folder <- file.path(domain_path, config$gauge_folder)
   dir.create(gauge_folder, showWarnings = FALSE, recursive = TRUE)
+  start_date = config$start_date
+  end_date = config$end_date
+  
   
   # Find gauges inside roi
   roi = read_sf(roi_file)
@@ -1016,6 +1022,7 @@ preprocess_streamflow_data = function(domain_path, remove_temp = FALSE,
   
   for (i in seq_along(gauge_list)) {
     gauge_id <- gauge_list[[i]]
+    print(gauge_id)
     if (!(gauge_id %in% colnames(df))) {
       cat(sprintf("Gauge ID %s not found in data.\n", gauge_id))
       next
@@ -1029,9 +1036,10 @@ preprocess_streamflow_data = function(domain_path, remove_temp = FALSE,
       next
     }
     
-    start_date <- min(series_valid$Date)
-    end_date <- max(series_valid$Date)
-    
+    if (!is.null(start_date) | !is.null(end_date)){
+      start_date <- min(series_valid$Date)
+      end_date <- max(series_valid$Date)
+    }
     
     full_range <- data.frame(Date = seq(start_date, end_date, by = "1 day"))
     filled_series <- full_range %>%
@@ -1061,6 +1069,8 @@ preprocess_streamflow_data = function(domain_path, remove_temp = FALSE,
     writeLines(output_lines, output_file)
     
     cat(sprintf("Wrote file: %s\n", output_file))
+    sf_use_s2(TRUE)
+    
   }
 }
 #' Rasterize gauge identifiers

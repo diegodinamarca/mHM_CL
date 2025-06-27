@@ -47,6 +47,27 @@ for (i in 7:7){
   df.full %>% write_csv(file.path(domain_path, config$out_folder, "streamflow","streamflow_data.csv"))
 }
 
+# visualization!
+for (i in 7:7){
+  i=1
+  domain_path = paste0("../domain_zone_",i)
+  config_path <- file.path(domain_path, "preprocess_config.json")
+  config = read_json(config_path)
+  discharge = file.path(domain_path, config$out_folder, "discharge.nc")
+  df <- get_qm3s_table(discharge)
+  df %>% group_by(ID) %>% 
+    filter(!is.na(Q_obs)) %>% 
+    filter(date >= "1980-01-01") %>% 
+    summarise(start = min(date),
+              end = max(date)) %>% 
+    mutate(years = (as.numeric(end-start)/365)) %>% 
+    # ungroup() %>% 
+    arrange(desc(years)) %>% 
+    filter(ID == 2112006)
+  df %>% filter(!is.na(Q_obs)) %>% 
+    filter(ID == 1021001)
+}
+
 # extract single variable from mhm output
 df.q = extract_roi_timeseries("domain_zone_4/OUT/mHM_Fluxes_States.nc", var_name = "Q", roi_file = basin)
 # extract all outputs from mhm output

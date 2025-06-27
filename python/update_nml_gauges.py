@@ -45,7 +45,10 @@ def update_evaluation_gauges(domain_path):
     nml = f90nml.read(nml_path)
 
     # Retrieve and sort .day gauge files
-    gauge_files = sorted([f for f in os.listdir(gauges_folder) if f.endswith('.day')])
+    gauge_files = sorted([
+        f for f in os.listdir(gauges_folder)
+        if f.endswith('.day') and not f.startswith("._")
+    ])
     gauge_ids = [int(os.path.splitext(f)[0]) for f in gauge_files]
 
     # Create Fortran-style keys

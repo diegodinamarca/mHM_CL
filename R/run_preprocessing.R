@@ -24,7 +24,7 @@ source("R/utils.R")
 source("R/preprocess/preprocess_forcings.R")
 
 # 1.set the path for the domain where all outputs will be written
-domain_path = "../domain_zone_2"
+domain_path = "../domain_9414001"
 
 # set up virtual environment with python packages.
 # Recommended: use a virtual environment with mhm installation
@@ -64,7 +64,7 @@ preprocess_soil_data(domain_path, remove_temp = TRUE, iter_num = 10)
 # Process geology data
 preprocess_geo_data(domain_path, remove_temp = TRUE, source.file = "global")
 # Create and appply common mask
-create_roi_mask(domain_path, remove_temp = TRUE, basin.mask = FALSE)
+create_roi_mask(domain_path, remove_temp = TRUE, basin.mask = TRUE)
 # Process streamflow data
 preprocess_streamflow_data(domain_path, remove_temp = TRUE)
 # Create gauge raster
@@ -79,8 +79,10 @@ source_python("python/update_time_periods.py")
 source_python("python/calibrate_model_option.py")
 
 # Call the function defined in the Python script
+reticulate::py_run_string("import os; print(os.getlogin())")
 # create latlon.nc
 run_create_latlon(domain_path)
+system2("cp", args = c("~/Downloads/temp_latlon/latlon.nc", "/Volumes/KINGSTON/domain_7339001/latlon/"), stdout = TRUE, stderr = TRUE)
 # write geoparameter block for mhm_parameter.nml
 write_geoparam_block(domain_path)
 # update mhm_parameter.nml with the geoparameter block
