@@ -24,7 +24,7 @@ source("R/utils.R")
 source("R/preprocess/preprocess_forcings.R")
 
 # 1.set the path for the domain where all outputs will be written
-domain_path = "../domain_9414001"
+domain_path = "/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_local/domain_5722002"
 
 # set up virtual environment with python packages.
 # Recommended: use a virtual environment with mhm installation
