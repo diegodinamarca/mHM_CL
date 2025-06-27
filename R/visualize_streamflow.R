@@ -2,7 +2,7 @@ library(terra)
 library(tidyverse)
 library(stars)
 library(sf)
-library(jsonlite)
+library(yaml)
 source("R/utils.r")
 
 # Read and merge tables with simulated and observed runoff
@@ -27,7 +27,7 @@ end_date = as.Date("2020-12-31")
 out_folder = "../domain_Chile/out/metrics"
 dir.create(out_folder)
 av_threshold = 80
-config_path = "preprocess_config.json"
+config_path = "preprocess_config.yaml"
 out.figs = "../FIGS"
 
 # which map use as background
@@ -166,8 +166,8 @@ basins = c(9414001,7339001,5710001)
 roi = camels %>% filter(gauge_id %in% basins)
 
 # === Load config and paths ===
-config_path <- file.path(domain_path, "preprocess_config.json")
-config <- read_json(config_path)
+config_path <- file.path(domain_path, "preprocess_config.yaml")
+config <- read_yaml(config_path)
 
 streamflow_data_file <- config$streamflow_data_file_mm
 gauges_file <- config$fluv_station_file

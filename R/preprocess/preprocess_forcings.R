@@ -1,7 +1,7 @@
 #' Preprocess climate forcing data
 #'
 #' This function crops, resamples, fills missin pixels and writes meteorological
-#' variables to the mHM domain defined in `preprocess_config.json`.
+#' variables to the mHM domain defined in `preprocess_config.yaml`.
 #'
 #' @param domain_path Path to the domain folder containing the configuration
 #'   file.
@@ -31,7 +31,7 @@ preprocess_climate_data <- function(domain_path, remove_temp = TRUE,
                                     fix.negatives = FALSE,
                                     iter_num = 3,
                                     crop_to_roi = TRUE) {
-  library(jsonlite)
+  library(yaml)
   library(terra)
   library(sf)
   library(magrittr)
@@ -114,8 +114,8 @@ preprocess_climate_data <- function(domain_path, remove_temp = TRUE,
   }
   
   # Load config
-  config_path <- file.path(domain_path, "preprocess_config.json")
-  config <- fromJSON(config_path)
+  config_path <- file.path(domain_path, "preprocess_config.yaml")
+  config <- read_yaml(config_path)
   
   roi_path <- config$roi_file
   date1 <- config$start_date
@@ -263,13 +263,13 @@ preprocess_LAI_data = function(domain_path, remove_temp = FALSE, iter_num = 10,
                                crop_to_roi = TRUE, force.fill = FALSE){
   library(terra)
   library(sf)
-  library(jsonlite)
+  library(yaml)
   library(tidyverse)
   # source("scripts/R/utils.R")
   
   # === Load config ===
-  config_path <- file.path(domain_path, "preprocess_config.json")
-  config <- fromJSON(config_path)
+  config_path <- file.path(domain_path, "preprocess_config.yaml")
+  config <- read_yaml(config_path)
   
   lai_path <- config$lai_file
   roi_path <- config$roi_file
@@ -355,12 +355,12 @@ preprocess_dem_data<- function(domain_path, remove_temp = FALSE,
   library(tidyverse)
   library(terra)
   library(sf)
-  library(jsonlite)
+  library(yaml)
   library(whitebox)
   
   # === Load config ===
-  config_path <- file.path(domain_path, "preprocess_config.json")
-  config <- jsonlite::fromJSON(config_path)
+  config_path <- file.path(domain_path, "preprocess_config.yaml")
+  config <- yaml::read_yaml(config_path)
   
   ref_file <- file.path(domain_path, config$meteo_folder, "pre.nc")
   dem_file <- config$dem_file
@@ -461,10 +461,10 @@ preprocess_lc_data = function(domain_path, remove_temp = FALSE,
   library(tidyverse)
   library(terra)
   library(sf)
-  library(jsonlite)
+  library(yaml)
   # leer archivo de configuracion json con rutas de archivos
-  config_path <- file.path(domain_path, "preprocess_config.json")
-  config <- fromJSON(config_path)
+  config_path <- file.path(domain_path, "preprocess_config.yaml")
+  config <- read_yaml(config_path)
   
   # Paths from config
   raster_path <- config$land_cover_file
@@ -559,12 +559,12 @@ preprocess_geo_data <- function(domain_path, remove_temp = FALSE, source.file = 
   library(tidyverse)
   library(terra)
   library(sf)
-  library(jsonlite)
+  library(yaml)
   
   sf_use_s2(FALSE)
   # leer archivo de configuracion json con rutas de archivos
-  config_path <- file.path(domain_path, "preprocess_config.json")
-  config <- fromJSON(config_path)
+  config_path <- file.path(domain_path, "preprocess_config.yaml")
+  config <- read_yaml(config_path)
   
   geo_file <- config$geo_file
   geo_file_global <- config$geo_file_global
@@ -713,10 +713,10 @@ preprocess_soil_data = function(domain_path, remove_temp = FALSE, iter_num = 10,
   library(tidyverse)
   library(terra)
   library(sf)
-  library(jsonlite)
+  library(yaml)
   
-  config_path <- file.path(domain_path, "preprocess_config.json")
-  config <- fromJSON(config_path)
+  config_path <- file.path(domain_path, "preprocess_config.yaml")
+  config <- read_yaml(config_path)
   
   roi_file = config$roi_file
   soil_files = config$soil_folder
@@ -901,13 +901,13 @@ preprocess_soil_data = function(domain_path, remove_temp = FALSE, iter_num = 10,
 #' @param basin.mask If `TRUE`, mask outputs to the basin polygon.
 #'
 #' @examples
-#' create_roi_mask("/path/to/domain/preprocess_config.json")
+#' create_roi_mask("/path/to/domain/preprocess_config.yaml")
 create_roi_mask = function(config_path, remove_temp = FALSE, basin.mask = FALSE){
   library(terra)
-  library(jsonlite)
+  library(yaml)
   
-  config_path <- file.path(domain_path, "preprocess_config.json")
-  config <- fromJSON(config_path)
+  config_path <- file.path(domain_path, "preprocess_config.yaml")
+  config <- read_yaml(config_path)
   morph_folder = file.path(domain_path, config$morph_folder)
   lc_folder = file.path(domain_path, config$lc_folder)
   lai_folder = file.path(domain_path, config$lai_folder)
@@ -983,15 +983,15 @@ create_roi_mask = function(config_path, remove_temp = FALSE, basin.mask = FALSE)
 #' preprocess_streamflow_data("/path/to/domain")
 preprocess_streamflow_data = function(domain_path, remove_temp = FALSE,
                                       crop_to_roi = TRUE){
-  library(jsonlite)
+  library(yaml)
   library(lubridate)
   library(tidyverse)
   # browser()
   sf_use_s2(FALSE)
   
   # === Load configuration ===
-  config_path <- file.path(domain_path, "preprocess_config.json")
-  config <- fromJSON(config_path)
+  config_path <- file.path(domain_path, "preprocess_config.yaml")
+  config <- read_yaml(config_path)
   
   streamflow_data_file = config$streamflow_data_file
   gauges_file = config$fluv_station_file
@@ -1086,11 +1086,11 @@ create_idgauges = function(domain_path, remove_temp = FALSE){
   library(sf)
   library(terra)
   library(readr)
-  library(jsonlite)
+  library(yaml)
   
   # === Load config ===
-  config_path <- file.path(domain_path, "preprocess_config.json")
-  config <- fromJSON(config_path)
+  config_path <- file.path(domain_path, "preprocess_config.yaml")
+  config <- read_yaml(config_path)
   
   gauge_file <- config$fluv_station_file
   gauge_folder = file.path(domain_path, config$gauge_folder)

@@ -9,7 +9,7 @@ Created on Wed Apr 30 12:36:55 2025
 
 import os
 import re
-import json
+import yaml
 
 def update_geoparam_block(domain_path):
     """Replace the &geoparameter block in ``mhm_parameter.nml``.
@@ -17,7 +17,7 @@ def update_geoparam_block(domain_path):
     Parameters
     ----------
     domain_path : str
-        Path to the domain directory containing ``preprocess_config.json`` as
+        Path to the domain directory containing ``preprocess_config.yaml`` as
         well as the morphology and ``exe`` folders referenced therein.
 
     Returns
@@ -28,10 +28,10 @@ def update_geoparam_block(domain_path):
     """
 
     # === Load config ===
-    config_path = os.path.join(domain_path, "preprocess_config.json")
+    config_path = os.path.join(domain_path, "preprocess_config.yaml")
 
     with open(config_path, "r") as f:
-        config = json.load(f)
+        config = yaml.safe_load(f)
 
     morph_folder = os.path.join(domain_path, config["morph_folder"])
     exe_folder = os.path.join(domain_path, config["exe_folder"])

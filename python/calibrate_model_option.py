@@ -6,18 +6,18 @@ Created on Fri Jun  6 11:14:13 2025
 @author: mhm
 """
 import os
-import json
+import yaml
 import shutil
 import f90nml
 
 def update_calibrate_option(domain_path):
     """
-    Rewrites the &mainconfig_mhm_mrm section in mhm.nml using values from preprocess_config.json,
+    Rewrites the &mainconfig_mhm_mrm section in mhm.nml using values from preprocess_config.yaml,
     including a dynamic 'optimize' value based on the 'calibrate_model' key in the config file.
     """
 
     # Paths
-    config_path = os.path.join(domain_path, 'preprocess_config.json')
+    config_path = os.path.join(domain_path, 'preprocess_config.yaml')
     exe_path = os.path.join(domain_path, 'exe')
     nml_path = os.path.join(exe_path, 'mhm.nml')
     temp_dir = os.path.join(exe_path, 'temp')
@@ -28,7 +28,7 @@ def update_calibrate_option(domain_path):
     # Read config file
     try:
         with open(config_path, 'r') as f:
-            config = json.load(f)
+            config = yaml.safe_load(f)
     except Exception as e:
         print(f"Error reading JSON config: {e}")
         return

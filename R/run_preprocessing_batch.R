@@ -1,6 +1,6 @@
 # -------------------------------------------------------------
 # Batch preprocessing for mHM.
-# Expects `preprocess_config.json` inside the domain folder supplied
+# Expects `preprocess_config.yaml` inside the domain folder supplied
 # as a command-line argument and a Python environment referenced in
 # `use_python()`.
 # Usage: Rscript R/run_preprocessing_batch.R <domain_path>
@@ -8,7 +8,7 @@
 
 # List of required packages
 required_packages <- c(
-  "reticulate", "jsonlite", "terra", "sf", "magrittr",
+  "reticulate", "yaml", "terra", "sf", "magrittr",
   "tidyverse", "whitebox", "lubridate"
 )
 
@@ -35,8 +35,8 @@ domain_path <- args[1]
 use_python("/Users/mhm/miniforge3/envs/mhm_env/bin/python", required = TRUE)
 
 # The configuration file must be inside the domain_path
-config_path <- file.path(domain_path, "preprocess_config.json")
-config <- read_json(config_path)
+config_path <- file.path(domain_path, "preprocess_config.yaml")
+config <- read_yaml(config_path)
 # Create folders inside the domain for writing outputs
 DirPaths <- c(config$out_folder, config$header_folder, config$latlon_folder,
               config$morph_folder, config$meteo_folder, config$lai_folder,

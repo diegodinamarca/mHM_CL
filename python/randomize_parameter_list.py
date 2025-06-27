@@ -197,7 +197,7 @@ mhm_nml = {
 }
 
 import random
-import json
+import yaml
 import os
 
 # Step 1: Load exe_folder from config
@@ -217,7 +217,7 @@ def get_exe_folder(config_path="preprocess_config_windows.json"):
     """
 
     with open(config_path, "r") as f:
-        config = json.load(f)
+        config = yaml.safe_load(f)
     return config["exe_folder"]
 
 # Step 2: Randomize value field in parameter tuples

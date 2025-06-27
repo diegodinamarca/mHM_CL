@@ -1,6 +1,6 @@
 # -------------------------------------------------------------
 # Preprocess forcing data for mHM.
-# Place `preprocess_config.json` inside the folder pointed to by
+# Place `preprocess_config.yaml` inside the folder pointed to by
 # `domain_path` and ensure `use_python()` references an mHM-enabled
 # Python environment.
 # Run with: source("R/run_preprocessing.R")
@@ -8,7 +8,7 @@
 
 # List of required packages
 required_packages <- c(
-  "reticulate", "jsonlite", "terra", "sf", "magrittr", 
+  "reticulate", "yaml", "terra", "sf", "magrittr",
   "tidyverse", "whitebox", "lubridate"
 )
 
@@ -30,14 +30,14 @@ domain_path = "/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_local/domain_5722002"
 # Recommended: use a virtual environment with mhm installation
   # instructions in: https://mhm-ufz.org/guides/install-unix/
 # Additional packages needed
-  # subprocess, os, json, re
+  # subprocess, os, pyyaml, re
 # use_condaenv("mhm_env", required = TRUE)
 # Specify the path to the Python interpreter
 use_python("/Users/mhm/miniforge3/envs/mhm_env/bin/python", required = TRUE)
 
 # The configuration file must be inside the domain_path
-config_path <- file.path(domain_path, "preprocess_config.json")
-config = read_json(config_path)
+config_path <- file.path(domain_path, "preprocess_config.yaml")
+config = read_yaml(config_path)
 
 # Create folders inside the domain for writing outputs
 dir.create(file.path(domain_path, config$out_folder), showWarnings = FALSE)

@@ -8,7 +8,7 @@ Created on Thu Jun  5 11:56:02 2025
 
 import os
 import f90nml
-import json
+import yaml
 import shutil
 
 def update_evaluation_gauges(domain_path):
@@ -17,7 +17,7 @@ def update_evaluation_gauges(domain_path):
     Parameters
     ----------
     domain_path : str
-        Path to the domain directory containing ``preprocess_config.json`` and
+        Path to the domain directory containing ``preprocess_config.yaml`` and
         gauge files.
 
     Returns
@@ -27,9 +27,9 @@ def update_evaluation_gauges(domain_path):
         and saves a backup of the original file.
     """
 
-    config_path = os.path.join(domain_path, "preprocess_config.json")
+    config_path = os.path.join(domain_path, "preprocess_config.yaml")
     with open(config_path, "r") as f:
-        config = json.load(f)
+        config = yaml.safe_load(f)
 
     exe_folder = os.path.join(domain_path, config["exe_folder"])
     gauges_folder = os.path.join(domain_path, config["gauge_folder"])

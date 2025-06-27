@@ -290,7 +290,7 @@ extract_roi_timeseries_all <- function(nc_path, roi_file, out_file = NULL) {
 #' Mosaic mHM outputs from multiple domains
 #'
 #' Reads `mHM_Fluxes_States.nc` from each domain, applies the ROI mask defined
-#' in the respective `preprocess_config.json` and merges all domains into
+#' in the respective `preprocess_config.yaml` and merges all domains into
 #' separate NetCDF files, one per variable.
 #'
 #' @param domains Character vector with paths to the domain folders. If `NULL`,
@@ -308,7 +308,7 @@ mosaic_outputs <- function(domains = NULL,
                            vars = c("snowpack","SM_Lall","satSTW","aET","Q",
                                     "SM_L01","SM_L02","SM_L03","SM_L04","SM_L05","SM_L06")) {
   library(terra)
-  library(jsonlite)
+  library(yaml)
   
   if (is.null(domains)) {
     domains <- dir(pattern = "domain", full.names = TRUE)
@@ -324,11 +324,11 @@ mosaic_outputs <- function(domains = NULL,
     message("Mosaicking variable: ", v)
     rasters <- list()
     for (d in domains) {
-      cfg_path <- file.path(d, "preprocess_config.json")
+      cfg_path <- file.path(d, "preprocess_config.yaml")
       if (!file.exists(cfg_path)) {
         stop("Configuration file not found in ", d)
       }
-      cfg <- fromJSON(cfg_path)
+      cfg <- read_yaml(cfg_path)
       nc_file <- file.path(d, cfg$out_folder, "mHM_Fluxes_States.nc")
       if (!file.exists(nc_file)) {
         stop("NetCDF file not found: ", nc_file)
@@ -354,7 +354,7 @@ mosaic_outputs <- function(domains = NULL,
 #'
 #' Reads daily NetCDF files located in the `meteo` folder of each domain and
 #' merges them into a single file per variable. The ROI mask defined in each
-#' `preprocess_config.json` is applied prior to mosaicking.
+#' `preprocess_config.yaml` is applied prior to mosaicking.
 #'
 #' @param domains Character vector with paths to the domain folders. If `NULL`,
 #'   all folders in the current working directory matching "domain" are used.
@@ -370,7 +370,7 @@ mosaic_meteo <- function(domains = NULL,
                          out_dir = "domain_chile/OUT",
                          vars = c("pre", "pet", "tmin", "tmax", "tavg")) {
   library(terra)
-  library(jsonlite)
+  library(yaml)
   
   if (is.null(domains)) {
     domains <- dir(pattern = "domain", full.names = TRUE)
@@ -386,11 +386,11 @@ mosaic_meteo <- function(domains = NULL,
     message("Mosaicking variable: ", v)
     rasters <- list()
     for (d in domains) {
-      cfg_path <- file.path(d, "preprocess_config.json")
+      cfg_path <- file.path(d, "preprocess_config.yaml")
       if (!file.exists(cfg_path)) {
         stop("Configuration file not found in ", d)
       }
-      cfg <- fromJSON(cfg_path)
+      cfg <- read_yaml(cfg_path)
       meteo_file <- file.path(d, "meteo", paste0(v, ".nc"))
       if (!file.exists(meteo_file)) {
         stop("NetCDF file not found: ", meteo_file)
@@ -424,7 +424,7 @@ mosaic_meteo <- function(domains = NULL,
 #' @param ts Time step of the output. Either "month" or "year".
 #' @param roi_mask Logical. Apply the ROI mask to the output.
 #' @param roi_file Optional path to a ROI file. Used when `roi_mask` is `TRUE`.
-#'   If `NULL`, the `roi_file` defined in `preprocess_config.json` is used.
+#'   If `NULL`, the `roi_file` defined in `preprocess_config.yaml` is used.
 #' @param out.format Output format: "tif" for GeoTIFF or "nc" for NetCDF.
 #'
 #' @return Invisibly returns the paths of the written files.
@@ -435,7 +435,7 @@ write_output <- function(domain_path, var_name, ts,
                          roi_mask = TRUE, roi_file = NULL,
                          out.format = c("tif", "nc")) {
   library(terra)
-  library(jsonlite)
+  library(yaml)
   
   out.format <- match.arg(out.format)
   ts <- match.arg(tolower(ts), c("month", "year"))
@@ -449,11 +449,11 @@ write_output <- function(domain_path, var_name, ts,
   
   if (roi_mask) {
     if (is.null(roi_file)) {
-      config_path <- file.path(domain_path, "preprocess_config.json")
+      config_path <- file.path(domain_path, "preprocess_config.yaml")
       if (!file.exists(config_path)) {
         stop("Configuration file not found: ", config_path)
       }
-      config <- fromJSON(config_path)
+      config <- read_yaml(config_path)
       roi_file <- config$roi_file
     }
     if (!file.exists(roi_file)) {
@@ -499,7 +499,7 @@ write_output <- function(domain_path, var_name, ts,
 #' @param domain_path Path to the model domain containing the `OUT` and `meteo`
 #'   folders.
 #' @param mask_roi Logical. If `TRUE`, the outputs are masked using the
-#'   `roi_file` specified in `preprocess_config.json` located inside
+#'   `roi_file` specified in `preprocess_config.yaml` located inside
 #'   `domain_path` or the file provided via `roi_file`.
 #' @param roi_file Optional path to a ROI file. When supplied, the outputs are
 #'   cropped and masked to this ROI instead of the one defined in the
@@ -510,7 +510,7 @@ write_output <- function(domain_path, var_name, ts,
 visualize_annual_outputs <- function(domain_path, mask_roi = FALSE,
                                      roi_file = NULL){
   library(terra)
-  library(jsonlite)
+  library(yaml)
   roi <- NULL
   if (!is.null(roi_file)) {
     if (!file.exists(roi_file)) {
@@ -518,11 +518,11 @@ visualize_annual_outputs <- function(domain_path, mask_roi = FALSE,
     }
     roi <- vect(roi_file)
   } else if (mask_roi) {
-    config_path <- file.path(domain_path, "preprocess_config.json")
+    config_path <- file.path(domain_path, "preprocess_config.yaml")
     if (!file.exists(config_path)) {
       stop("Configuration file not found: ", config_path)
     }
-    config <- jsonlite::fromJSON(config_path)
+    config <- yaml::read_yaml(config_path)
     roi_path <- config$roi_file
     if (!grepl("^(/|[A-Za-z]:)", roi_path)) {
       roi_path <- file.path(roi_path)
@@ -690,19 +690,19 @@ plot_raster <- function(r, var, limits, palette = 16) {
 #'
 #' @param domain_path Path to the model domain directory.
 #' @param crop_to_roi Logical. If `TRUE`, only gauges inside the ROI defined in
-#'   `preprocess_config.json` are considered.
+#'   `preprocess_config.yaml` are considered.
 #'
 #' @return A tibble with columns `ID`, `date`, `Q_sim` and `Q_obs`.
 #' @export
 get_qmm_table <- function(domain_path, crop_to_roi = TRUE) {
   library(terra)
   library(sf)
-  library(jsonlite)
+  library(yaml)
   library(tidyverse)
 
   # === Load config and paths ===
-  config_path <- file.path(domain_path, "preprocess_config.json")
-  config <- read_json(config_path)
+  config_path <- file.path(domain_path, "preprocess_config.yaml")
+  config <- read_yaml(config_path)
   
   streamflow_data_file <- config$streamflow_data_file_mm
   gauges_file <- config$fluv_station_file
@@ -862,7 +862,7 @@ calculate_error_metrics <- function(obs, sim, norm = "sd") {
 #'
 #' @param df Data frame containing at least the columns `ID`, `date`,
 #'   `Q_obs_mm`, `Q_sim_mm`, `Q_obs_m3s` and `Q_sim_m3s`.
-#' @param config_path Path to `preprocess_config.json` with station metadata.
+#' @param config_path Path to `preprocess_config.yaml` with station metadata.
 #' @param start_date Start date of the evaluation period.
 #' @param end_date End date of the evaluation period.
 #' @param out_folder Optional output folder where the table of metrics is
@@ -873,13 +873,13 @@ calculate_error_metrics <- function(obs, sim, norm = "sd") {
 #' @return A tibble with the computed metrics and station coordinates.
 #' @export
 evaluate_station_metrics <- function(df,
-                                     config_path = "preprocess_config.json",
+                                     config_path = "preprocess_config.yaml",
                                      start_date = as.Date("1980-01-01"),
                                      end_date = as.Date("2020-12-31"),
                                      out_folder = NULL,
                                      av_threshold = 80) {
   # Read config file
-  config <- jsonlite::read_json(config_path)
+  config <- yaml::read_yaml(config_path)
   
   calculate_non_na_percentage <- function(df, start_date = as.Date("1980-01-01"), end_date = as.Date("2020-12-31")) {
     df %>%

@@ -2,7 +2,7 @@ library(terra)
 library(tidyverse)
 library(stars)
 library(sf)
-library(jsonlite)
+library(yaml)
 source("R/utils.r")
 
 for (i in 1:7){
@@ -36,8 +36,8 @@ mosaic_outputs(domain_folders)
 # Extract gridded runoff values (mm) and routing generated runoff (m3/s)
 for (i in 7:7){
   domain_path = paste0("../domain_zone_",i)
-  config_path <- file.path(domain_path, "preprocess_config.json")
-  config = read_json(config_path)
+  config_path <- file.path(domain_path, "preprocess_config.yaml")
+  config = read_yaml(config_path)
   df.mm <- get_qmm_table(domain_path, crop_to_roi = TRUE)
   discharge = file.path(domain_path, config$out_folder, "discharge.nc")
   df <- get_qm3s_table(discharge)
@@ -51,8 +51,8 @@ for (i in 7:7){
 for (i in 7:7){
   i=1
   domain_path = paste0("../domain_zone_",i)
-  config_path <- file.path(domain_path, "preprocess_config.json")
-  config = read_json(config_path)
+  config_path <- file.path(domain_path, "preprocess_config.yaml")
+  config = read_yaml(config_path)
   discharge = file.path(domain_path, config$out_folder, "discharge.nc")
   df <- get_qm3s_table(discharge)
   df %>% group_by(ID) %>% 

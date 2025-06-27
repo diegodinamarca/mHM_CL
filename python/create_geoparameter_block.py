@@ -1,6 +1,6 @@
 # write_geoparam_block.py
 import os
-import json
+import yaml
 import re
 
 def write_geoparam_block(domain_path):
@@ -9,7 +9,7 @@ def write_geoparam_block(domain_path):
     Parameters
     ----------
     domain_path : str
-        Path to the domain folder containing ``preprocess_config.json`` and
+        Path to the domain folder containing ``preprocess_config.yaml`` and
         subfolders referenced within that configuration.
 
     Returns
@@ -20,10 +20,10 @@ def write_geoparam_block(domain_path):
     """
 
     # === Load config to get folders ===
-    config_path = os.path.join(domain_path, "preprocess_config.json")
+    config_path = os.path.join(domain_path, "preprocess_config.yaml")
 
     with open(config_path, "r") as f:
-        config = json.load(f)
+        config = yaml.safe_load(f)
 
     morph_folder = os.path.join(domain_path, config["morph_folder"])
     exe_folder = os.path.join(domain_path, config["exe_folder"])

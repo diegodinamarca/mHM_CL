@@ -11,17 +11,17 @@ import rasterio
 from rasterio.features import rasterize
 from shapely.geometry import Point
 import numpy as np
-import json
+import yaml
 import os
 import chardet
 import csv
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
-config_path = os.path.join(script_dir, "preprocess_config.json")
+config_path = os.path.join(script_dir, "preprocess_config.yaml")
 
 # Load config
 with open(config_path, "r") as f:
-    config = json.load(f)
+    config = yaml.safe_load(f)
 
 # Parameters from config
 csv_path = config["fluv_station_file"]
