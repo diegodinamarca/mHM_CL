@@ -107,21 +107,12 @@ annual_mean <- function(r, fun = c("mean", "sum")) {
 #'   days of each month.
 #' @return A SpatRaster with one layer per month.
 #' @export
-daily_to_monthly <- function(r, fun = c("mean", "sum")) {
-  fun <- match.arg(fun)
+daily_to_monthly <- function(r, fun = "mean") {
+  # fun <- match.arg(fun)
   tvec <- terra::time(r)
   ym <- format(tvec, "%Y-%m")
-  idx <- split(seq_along(ym), ym)
-  monthly <- lapply(idx, function(i) {
-    if (fun == "sum") {
-      sum(r[[i]], na.rm = TRUE)
-    } else {
-      mean(r[[i]], na.rm = TRUE)
-    }
-  })
-  monthly <- rast(monthly)
-  time(monthly) <- as.Date(paste0(names(idx), "-01"))
-  monthly
+  r_ann <- tapp(r, ym, fun = fun, na.rm = TRUE)
+  return(r_ann)
 }
 
 #' Aggregate monthly data to yearly values
@@ -134,21 +125,12 @@ daily_to_monthly <- function(r, fun = c("mean", "sum")) {
 #'   months of each year.
 #' @return A SpatRaster with one layer per year.
 #' @export
-monthly_to_yearly <- function(r, fun = c("mean", "sum")) {
-  fun <- match.arg(fun)
+monthly_to_yearly <- function(r, fun = "mean") {
+  # fun <- match.arg(fun)
   tvec <- terra::time(r)
-  years <- format(tvec, "%Y")
-  idx <- split(seq_along(years), years)
-  yearly <- lapply(idx, function(i) {
-    if (fun == "sum") {
-      sum(r[[i]], na.rm = TRUE)
-    } else {
-      mean(r[[i]], na.rm = TRUE)
-    }
-  })
-  yearly <- rast(yearly)
-  time(yearly) <- as.Date(paste0(names(idx), "-01-01"))
-  yearly
+  ym<- format(tvec, "%Y")
+  r_ann <- tapp(r, y, fun = fun, na.rm = TRUE)
+  return(r_ann)
 }
 
 #' Extract ROI mean time series
