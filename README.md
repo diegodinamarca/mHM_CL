@@ -10,7 +10,7 @@ La función `visualize_annual_outputs` permite opcionalmente entregar la ruta de
 
 En [`R/utils.R`](R/utils.R) se encuentran algunas funciones utiles para la ejecucion del pre y post procesamiento.
 
-La función `write_output` permite exportar variables mensuales o anuales a TIFF o NetCDF desde el output del modelo `mHM_Fluxes_States.nc`. El resultado es un único archivo con una banda por cada periodo de tiempo solicitado.
+La función `write_output` permite exportar variables mensuales o anuales a TIFF o NetCDF desde el output del modelo `mHM_Fluxes_States.nc`. De forma opcional se puede especificar la carpeta de salida mediante el argumento `out.opt`, reemplazando la definida en el archivo `preprocess_config.yaml`. El resultado es un único archivo con una banda por cada periodo de tiempo solicitado.
 
 Para visualizar promedios anuales de los archivos mosaiceados se puede utilizar el script [`R/visualize_mosaic_outputs.R`](R/visualize_mosaic_outputs.R). Este script permite seleccionar un archivo de ROI para enmascarar los resultados.
 

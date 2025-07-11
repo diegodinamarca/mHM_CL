@@ -426,6 +426,8 @@ mosaic_meteo <- function(domains = NULL,
 #' @param roi_file Optional path to a ROI file. Used when `roi_mask` is `TRUE`.
 #'   If `NULL`, the `roi_file` defined in `preprocess_config.yaml` is used.
 #' @param out.format Output format: "tif" for GeoTIFF or "nc" for NetCDF.
+#' @param out.opt Optional path to the output folder. If provided, overrides
+#'   the `out_folder` defined in `preprocess_config.yaml`.
 #'
 #' @return Invisibly returns the paths of the written files.
 #' @examples
@@ -433,7 +435,7 @@ mosaic_meteo <- function(domains = NULL,
 #' @export
 write_output <- function(domain_path, var_name, ts,
                          roi_mask = TRUE, roi_file = NULL,
-                         out.format = c("tif", "nc")) {
+                         out.format = c("tif", "nc"), out.opt = NULL) {
   library(terra)
   library(yaml)
   
@@ -445,8 +447,9 @@ write_output <- function(domain_path, var_name, ts,
     stop("Configuration file not found: ", config_path)
   }
   config <- read_yaml(config_path)
-  
-  nc_path <- file.path(domain_path, config$out_folder, "mHM_Fluxes_States.nc")
+
+  out_folder <- if (!is.null(out.opt)) out.opt else config$out_folder
+  nc_path <- file.path(domain_path, out_folder, "mHM_Fluxes_States.nc")
   if (!file.exists(nc_path)) {
     stop("NetCDF not found: ", nc_path)
   }
@@ -474,7 +477,7 @@ write_output <- function(domain_path, var_name, ts,
     r <- monthly_to_yearly(r, fun = "mean")
   }
   
-  out_dir <- file.path(domain_path, config$out_folder, var_name)
+  out_dir <- file.path(domain_path, out_folder, var_name)
   dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
   
   if (out.format == "tif") {
