@@ -440,7 +440,13 @@ write_output <- function(domain_path, var_name, ts,
   out.format <- match.arg(out.format)
   ts <- match.arg(tolower(ts), c("month", "year"))
   
-  nc_path <- file.path(domain_path, "OUT", "mHM_Fluxes_States.nc")
+  config_path <- file.path(domain_path, "preprocess_config.yaml")
+  if (!file.exists(config_path)) {
+    stop("Configuration file not found: ", config_path)
+  }
+  config <- read_yaml(config_path)
+  
+  nc_path <- file.path(domain_path, config$out_folder, "mHM_Fluxes_States.nc")
   if (!file.exists(nc_path)) {
     stop("NetCDF not found: ", nc_path)
   }
@@ -449,11 +455,6 @@ write_output <- function(domain_path, var_name, ts,
   
   if (roi_mask) {
     if (is.null(roi_file)) {
-      config_path <- file.path(domain_path, "preprocess_config.yaml")
-      if (!file.exists(config_path)) {
-        stop("Configuration file not found: ", config_path)
-      }
-      config <- read_yaml(config_path)
       roi_file <- config$roi_file
     }
     if (!file.exists(roi_file)) {
@@ -473,7 +474,7 @@ write_output <- function(domain_path, var_name, ts,
     r <- monthly_to_yearly(r, fun = "mean")
   }
   
-  out_dir <- file.path(domain_path, "OUT", var_name)
+  out_dir <- file.path(domain_path, config$out_folder, var_name)
   dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
   
   if (out.format == "tif") {
@@ -494,7 +495,7 @@ write_output <- function(domain_path, var_name, ts,
 #'
 #' Reads the standard mHM NetCDF outputs together with precipitation and
 #' potential evapotranspiration forcings and displays the long term annual means
-#' in a 2x4 panel plot.
+#' in a 2x5 panel plot.
 #'
 #' @param domain_path Path to the model domain containing the `OUT` and `meteo`
 #'   folders.
@@ -504,13 +505,25 @@ write_output <- function(domain_path, var_name, ts,
 #' @param roi_file Optional path to a ROI file. When supplied, the outputs are
 #'   cropped and masked to this ROI instead of the one defined in the
 #'   configuration file.
-#' @examples
-#' visualize_annual_outputs("/path/to/domain")
+#' @param out_folder Folder where to save the output PNG figure. If `NULL`,
+#'   defaults to "/Volumes/KINGSTON/FONDECYT_CAMILA/mHM_CL/FIGS".
 #' @export
 visualize_annual_outputs <- function(domain_path, mask_roi = FALSE,
-                                     roi_file = NULL){
+                                     roi_file = NULL, filename = NULL, 
+                                     out_folder = NULL, res_folder = NULL) {
   library(terra)
   library(yaml)
+  
+  # Internal function for annual mean
+  annual_mean <- function(r, fun = "mean") {
+    if (is.character(time(r))) {
+      time(r) <- as.POSIXct(time(r), origin = "1970-01-01")
+    }
+    years <- format(time(r), "%Y")
+    r_ann <- tapp(r, years, fun = fun, na.rm = TRUE)
+    terra::mean(r_ann, na.rm = TRUE)
+  }
+  
   roi <- NULL
   if (!is.null(roi_file)) {
     if (!file.exists(roi_file)) {
@@ -525,25 +538,35 @@ visualize_annual_outputs <- function(domain_path, mask_roi = FALSE,
     config <- yaml::read_yaml(config_path)
     roi_path <- config$roi_file
     if (!grepl("^(/|[A-Za-z]:)", roi_path)) {
-      roi_path <- file.path(roi_path)
+      roi_path <- file.path(domain_path, roi_path)
     }
     if (!file.exists(roi_path)) {
       stop("ROI file not found: ", roi_path)
     }
     roi <- vect(roi_path)
   }
-  out_file <- file.path(domain_path, "OUT", "mHM_Fluxes_States.nc")
-  meteo_folder <- file.path(domain_path, "meteo")
   
-  snowpack <- rast(out_file, subds = "snowpack")
-  soilmoist <- rast(out_file, subds = "SM_Lall")
-  satstw <- rast(out_file, subds = "satSTW")
-  aet <- rast(out_file, subds = "aET")
-  runoff <- rast(out_file, subds = "Q")
+  # Read datasets
+  if (is.null(res_folder)){
+    res_folder = config$out_folder
+    res_file <- file.path(domain_path, res_folder, "mHM_Fluxes_States.nc")
+  }else{
+    res_file <- file.path(domain_path, res_folder, "mHM_Fluxes_States.nc")
+  }
+  meteo_folder <- file.path(domain_path, config$meteo_folder)
+  
+  cat("reading results in", res_file)
+  
+  snowpack <- rast(res_file, subds = "snowpack")
+  soilmoist <- rast(res_file, subds = "SM_Lall")
+  satstw <- rast(res_file, subds = "satSTW")
+  aet <- rast(res_file, subds = "aET")
+  runoff <- rast(res_file, subds = "Q")
   
   pre <- rast(file.path(meteo_folder, "pre.nc"), subds = "pre")
   pet <- rast(file.path(meteo_folder, "pet.nc"), subds = "pet")
   
+  # Process layers
   message("Processing precipitation")
   pre_ann <- annual_mean(pre, "sum")
   message("Processing potential evapotranspiration")
@@ -559,50 +582,77 @@ visualize_annual_outputs <- function(domain_path, mask_roi = FALSE,
   snow_ann <- annual_mean(snowpack, "mean")
   message("Processing groundwater level")
   sat_ann <- annual_mean(satstw, "mean")
+  
+  # Crop and mask if ROI is provided
   if (!is.null(roi)) {
-    if (!is.null(roi_file)) {
-      pre_ann <- crop(pre_ann, roi)
-      pet_ann <- crop(pet_ann, roi)
-      aet_ann <- crop(aet_ann, roi)
-      runoff_ann <- crop(runoff_ann, roi)
-
-      sm_ann <- crop(sm_ann, roi)
-      snow_ann <- crop(snow_ann, roi)
-      sat_ann <- crop(sat_ann, roi)
-    }
-
-    pre_ann <- mask(pre_ann, roi)
-    pet_ann <- mask(pet_ann, roi)
-    aet_ann <- mask(aet_ann, roi)
-    runoff_ann <- mask(runoff_ann, roi)
-
-    sm_ann <- mask(sm_ann, roi)
-    snow_ann <- mask(snow_ann, roi)
-    sat_ann <- mask(sat_ann, roi)
+    pre_ann <- crop(pre_ann, roi) |> mask(roi)
+    pet_ann <- crop(pet_ann, roi) |> mask(roi)
+    aet_ann <- crop(aet_ann, roi) |> mask(roi)
+    runoff_ann <- crop(runoff_ann, roi) |> mask(roi)
+    sm_ann <- crop(sm_ann, roi) |> mask(roi)
+    snow_ann <- crop(snow_ann, roi) |> mask(roi)
+    sat_ann <- crop(sat_ann, roi) |> mask(roi)
   }
-
+  
   disp_ann <- pre_ann - aet_ann
   
   flux_range <- range(c(values(pre_ann), values(pet_ann),
-                        values(aet_ann), values(runoff_ann)), na.rm = TRUE)
+                        values(aet_ann), values(runoff_ann),
+                        values(disp_ann)), na.rm = TRUE)
+  
   state_range <- range(c(values(snow_ann), values(sm_ann), values(sat_ann)),
                        na.rm = TRUE)
   
-  op <- par(no.readonly = TRUE)
-  on.exit(par(op))
+  # Save PNG
+  png_filename <- filename
+  png(png_filename, width = 2000, height = 1000, res = 150)
+  
   par(mfrow = c(2, 5), mar = c(4, 4, 2, 5))
   
   plot(pre_ann, main = "Precipitation", zlim = flux_range)
   plot(pet_ann, main = "Potential ET", zlim = flux_range)
   plot(aet_ann, main = "Actual ET", zlim = flux_range)
   plot(runoff_ann, main = "Runoff", zlim = flux_range)
-  plot(disp_ann, main = "Pr-ET", zlim = flux_range)
+  plot(disp_ann, main = "Pr - ET", zlim = flux_range)
   
-  plot(sm_ann, main = "Soil moisture", zlim = state_range)
+  plot(sm_ann, main = "Soil Moisture", zlim = state_range)
   plot(snow_ann, main = "Snowpack", zlim = state_range)
-  plot(sat_ann, main = "GW level", zlim = state_range)
+  plot(sat_ann, main = "GW Level", zlim = state_range)
   plot.new()
+  text(0.5, 0.5, "Summary Map", cex = 1.2)
+  
+  dev.off()
+  message("Figure saved to: ", png_filename)
+  
+  # Plot to screen if interactive
+  if (interactive()) {
+    par(mfrow = c(2, 5), mar = c(4, 4, 2, 5))
+    
+    plot(pre_ann, main = "Precipitation", zlim = flux_range)
+    plot(pet_ann, main = "Potential ET", zlim = flux_range)
+    plot(aet_ann, main = "Actual ET", zlim = flux_range)
+    plot(runoff_ann, main = "Runoff", zlim = flux_range)
+    plot(disp_ann, main = "Pr - ET", zlim = flux_range)
+    
+    plot(sm_ann, main = "Soil Moisture", zlim = state_range)
+    plot(snow_ann, main = "Snowpack", zlim = state_range)
+    plot(sat_ann, main = "GW Level", zlim = state_range)
+    plot.new()
+    text(0.5, 0.5, "Summary Map", cex = 1.2)
+  }
+  
+  invisible(list(
+    pre = pre_ann,
+    pet = pet_ann,
+    aet = aet_ann,
+    runoff = runoff_ann,
+    disp = disp_ann,
+    sm = sm_ann,
+    snow = snow_ann,
+    sat = sat_ann
+  ))
 }
+
 
 
 #' Get plotting limits for a raster
@@ -699,7 +749,7 @@ get_qmm_table <- function(domain_path, crop_to_roi = TRUE) {
   library(sf)
   library(yaml)
   library(tidyverse)
-
+  
   # === Load config and paths ===
   config_path <- file.path(domain_path, "preprocess_config.yaml")
   config <- read_yaml(config_path)
@@ -712,8 +762,8 @@ get_qmm_table <- function(domain_path, crop_to_roi = TRUE) {
   
   # === Read spatial data ===
   roi <- read_sf(roi_file)
-  gauges <- read_csv(gauges_file) %>%
-    st_as_sf(coords = c("LON", "LAT"), crs = 4326)
+  sf_use_s2(FALSE)
+  gauges <- read_sf(gauges_file)
   
   # === Filter gauges by ROI if needed ===
   if (crop_to_roi) {
@@ -746,6 +796,7 @@ get_qmm_table <- function(domain_path, crop_to_roi = TRUE) {
   
   # === Join simulated and observed ===
   df <- full_join(df_sim, df_obs, by = c("ID", "date"))
+  sf_use_s2(TRUE)
   
   return(df)
 }
@@ -880,7 +931,7 @@ evaluate_station_metrics <- function(df,
                                      av_threshold = 80) {
   # Read config file
   config <- yaml::read_yaml(config_path)
-  
+  # browser()
   calculate_non_na_percentage <- function(df, start_date = as.Date("1980-01-01"), end_date = as.Date("2020-12-31")) {
     df %>%
       filter(date >= start_date & date <= end_date) %>%
@@ -903,9 +954,14 @@ evaluate_station_metrics <- function(df,
   }
   # Calculate non-NA percentages (assumes the function is defined elsewhere)
   perc <- calculate_non_na_percentage(df)
+  
   selected_gauges <- perc %>%
     filter(perc_Q_obs_m3s > av_threshold) %>%
     pull(ID)
+  if (length(selected_gauges) == 0){
+    selected_gauges = perc$ID
+    message("All guages have less streamflow data than %", av_threshold, ", using all data available")
+  }
   
   # Filter and compute metrics (assumes calculate_error_metrics() is defined)
   metrics <- df %>%
@@ -914,10 +970,10 @@ evaluate_station_metrics <- function(df,
     filter(ID %in% selected_gauges) %>%
     group_by(ID) %>%
     do(calculate_error_metrics(.$Q_obs_m3s, .$Q_sim_m3s))
-  
+  print(metrics)
   # Read station coordinates from config
   message("Reading config file. Fluvio stations coordinates read at: ", config_path)
-  fluv_station <- read_csv(config$fluv_station_file)
+  fluv_station <- read_sf(config$fluv_station_file)
   
   # Join coordinates
   metrics <- metrics %>%
@@ -971,4 +1027,14 @@ plot_metric_map <- function(rast, metrics_sf, metric = "kge", metric_name = NULL
     labs(x = "Longitude", y = "Latitude")
   
   return(p)
+}
+
+streamflow_data_range <- function(df, id = NULL) {
+  if (!is.null(id))
+    df %>% dplyr::select(date, all_of(id)) %>% 
+    drop_na() %>% 
+    summarise(n = n(),
+              start = min(date),
+              end = max(date),
+              years = n/365)
 }

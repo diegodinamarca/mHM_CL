@@ -659,7 +659,7 @@ preprocess_geo_data <- function(domain_path, remove_temp = FALSE, source.file = 
     GeoClass = names(val_map),
     Value = as.integer(val_map)
   )
-  write_csv(lut_df, file.path(temp_folder, "LUT_geo_chile.csv"))
+  write_csv(lut_df, file.path(morph_folder, "LUT_geo_chile.csv"))
   
   # Crear archivo geology_classdefinition.txt
   n_units <- length(val_map)
@@ -1004,7 +1004,7 @@ preprocess_streamflow_data = function(domain_path, remove_temp = FALSE,
   
   # Find gauges inside roi
   roi = read_sf(roi_file)
-  gauges = read_csv(gauges_file) %>% st_as_sf(coords = c("LON","LAT"), crs = 4326)
+  gauges = read_sf(gauges_file)
   
   if (crop_to_roi) {
     gauge_list = as.character(st_intersection(roi, gauges)$ID)
@@ -1069,9 +1069,9 @@ preprocess_streamflow_data = function(domain_path, remove_temp = FALSE,
     writeLines(output_lines, output_file)
     
     cat(sprintf("Wrote file: %s\n", output_file))
-    sf_use_s2(TRUE)
-    
   }
+  sf_use_s2(TRUE)
+  
 }
 #' Rasterize gauge identifiers
 #'
@@ -1087,7 +1087,7 @@ create_idgauges = function(domain_path, remove_temp = FALSE){
   library(terra)
   library(readr)
   library(yaml)
-  
+  # browser()
   # === Load config ===
   config_path <- file.path(domain_path, "preprocess_config.yaml")
   config <- read_yaml(config_path)
@@ -1103,8 +1103,8 @@ create_idgauges = function(domain_path, remove_temp = FALSE){
     str_sub(end = -5) %>% 
     as.numeric()
   
-  gauges = read_csv(gauge_file) %>%
-    st_as_sf(coords = c("LON","LAT"), crs = 4326) %>% 
+  gauges = read_sf(gauge_file) %>%
+    # st_transform(4326) %>% 
     filter(ID %in% gauge_list)
   
   # === Load reference raster ===

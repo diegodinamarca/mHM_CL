@@ -24,7 +24,7 @@ source("R/utils.R")
 source("R/preprocess/preprocess_forcings.R")
 
 # 1.set the path for the domain where all outputs will be written
-domain_path = "/Users/mhm/Desktop/FONDECYT_CAMILA/mhm_local/domain_5722002"
+domain_path = "/Volumes/KINGSTON/FONDECYT_CAMILA/mHM_CL/domain_11337001"
 
 # set up virtual environment with python packages.
 # Recommended: use a virtual environment with mhm installation
@@ -49,7 +49,6 @@ dir.create(file.path(domain_path, config$lai_folder), showWarnings = FALSE)
 dir.create(file.path(domain_path, config$lc_folder), showWarnings = FALSE)
 dir.create(file.path(domain_path, config$gauge_folder), showWarnings = FALSE)
 
-
 # Process climate data
 preprocess_climate_data(domain_path, remove_temp = TRUE, large.raster = FALSE,
                         fix.negatives = TRUE, time_origin = config$start_date)
@@ -62,9 +61,13 @@ preprocess_lc_data(domain_path, remove_temp = TRUE)
 # Process soil data
 preprocess_soil_data(domain_path, remove_temp = TRUE, iter_num = 10)
 # Process geology data
-preprocess_geo_data(domain_path, remove_temp = TRUE, source.file = "global")
+preprocess_geo_data(domain_path, remove_temp = FALSE, source.file = "global")
 # Create and appply common mask
 create_roi_mask(domain_path, remove_temp = TRUE, basin.mask = TRUE)
+
+# At this point we should check if the facc.asc coincides with the gauge points
+#   in the est_fluv folder. Run the following functions when idgauges and facc
+#   are well adjusted
 # Process streamflow data
 preprocess_streamflow_data(domain_path, remove_temp = TRUE)
 # Create gauge raster
