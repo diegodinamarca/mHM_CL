@@ -10,14 +10,14 @@ import yaml
 import shutil
 import f90nml
 
-def update_calibrate_option(domain_path):
+def update_calibrate_option(domain_path, config_name="preprocess_config.yaml"):
     """
     Rewrites the &mainconfig_mhm_mrm section in mhm.nml using values from preprocess_config.yaml,
     including a dynamic 'optimize' value based on the 'calibrate_model' key in the config file.
     """
 
     # Paths
-    config_path = os.path.join(domain_path, 'preprocess_config.yaml')
+    config_path = os.path.join(domain_path, config_name)
     exe_path = os.path.join(domain_path, 'exe')
     nml_path = os.path.join(exe_path, 'mhm.nml')
     temp_dir = os.path.join(exe_path, 'temp')

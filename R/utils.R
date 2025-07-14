@@ -288,7 +288,8 @@ extract_roi_timeseries_all <- function(nc_path, roi_file, out_file = NULL) {
 mosaic_outputs <- function(domains = NULL,
                            out_dir = "domain_chile/OUT",
                            vars = c("snowpack","SM_Lall","satSTW","aET","Q",
-                                    "SM_L01","SM_L02","SM_L03","SM_L04","SM_L05","SM_L06")) {
+                                    "SM_L01","SM_L02","SM_L03","SM_L04","SM_L05","SM_L06"),
+                           config_name = "preprocess_config.yaml") {
   library(terra)
   library(yaml)
   
@@ -306,7 +307,7 @@ mosaic_outputs <- function(domains = NULL,
     message("Mosaicking variable: ", v)
     rasters <- list()
     for (d in domains) {
-      cfg_path <- file.path(d, "preprocess_config.yaml")
+      cfg_path <- file.path(d, config_name)
       if (!file.exists(cfg_path)) {
         stop("Configuration file not found in ", d)
       }
@@ -350,7 +351,8 @@ mosaic_outputs <- function(domains = NULL,
 #' @export
 mosaic_meteo <- function(domains = NULL,
                          out_dir = "domain_chile/OUT",
-                         vars = c("pre", "pet", "tmin", "tmax", "tavg")) {
+                         vars = c("pre", "pet", "tmin", "tmax", "tavg"),
+                         config_name = "preprocess_config.yaml") {
   library(terra)
   library(yaml)
   
@@ -368,7 +370,7 @@ mosaic_meteo <- function(domains = NULL,
     message("Mosaicking variable: ", v)
     rasters <- list()
     for (d in domains) {
-      cfg_path <- file.path(d, "preprocess_config.yaml")
+      cfg_path <- file.path(d, config_name)
       if (!file.exists(cfg_path)) {
         stop("Configuration file not found in ", d)
       }
@@ -417,14 +419,15 @@ mosaic_meteo <- function(domains = NULL,
 #' @export
 write_output <- function(domain_path, var_name, ts,
                          roi_mask = TRUE, roi_file = NULL,
-                         out.format = c("tif", "nc"), out.opt = NULL) {
+                         out.format = c("tif", "nc"), out.opt = NULL,
+                         config_name = "preprocess_config.yaml") {
   library(terra)
   library(yaml)
   
   out.format <- match.arg(out.format)
   ts <- match.arg(tolower(ts), c("month", "year"))
   
-  config_path <- file.path(domain_path, "preprocess_config.yaml")
+  config_path <- file.path(domain_path, config_name)
   if (!file.exists(config_path)) {
     stop("Configuration file not found: ", config_path)
   }
@@ -494,8 +497,9 @@ write_output <- function(domain_path, var_name, ts,
 #'   defaults to "/Volumes/KINGSTON/FONDECYT_CAMILA/mHM_CL/FIGS".
 #' @export
 visualize_annual_outputs <- function(domain_path, mask_roi = FALSE,
-                                     roi_file = NULL, filename = NULL, 
-                                     out_folder = NULL, res_folder = NULL) {
+                                     roi_file = NULL, filename = NULL,
+                                     out_folder = NULL, res_folder = NULL,
+                                     config_name = "preprocess_config.yaml") {
   library(terra)
   library(yaml)
   
@@ -516,7 +520,7 @@ visualize_annual_outputs <- function(domain_path, mask_roi = FALSE,
     }
     roi <- vect(roi_file)
   } else if (mask_roi) {
-    config_path <- file.path(domain_path, "preprocess_config.yaml")
+    config_path <- file.path(domain_path, config_name)
     if (!file.exists(config_path)) {
       stop("Configuration file not found: ", config_path)
     }
@@ -729,14 +733,15 @@ plot_raster <- function(r, var, limits, palette = 16) {
 #'
 #' @return A tibble with columns `ID`, `date`, `Q_sim` and `Q_obs`.
 #' @export
-get_qmm_table <- function(domain_path, crop_to_roi = TRUE) {
+get_qmm_table <- function(domain_path, crop_to_roi = TRUE,
+                          config_name = "preprocess_config.yaml") {
   library(terra)
   library(sf)
   library(yaml)
   library(tidyverse)
   # browser()
   # === Load config and paths ===
-  config_path <- file.path(domain_path, "preprocess_config.yaml")
+  config_path <- file.path(domain_path, config_name)
   config <- read_yaml(config_path)
   
   streamflow_data_file <- config$streamflow_data_file_mm

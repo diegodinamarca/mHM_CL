@@ -11,7 +11,7 @@ import os
 import re
 import yaml
 
-def update_geoparam_block(domain_path):
+def update_geoparam_block(domain_path, config_name="preprocess_config.yaml"):
     """Replace the &geoparameter block in ``mhm_parameter.nml``.
 
     Parameters
@@ -28,7 +28,7 @@ def update_geoparam_block(domain_path):
     """
 
     # === Load config ===
-    config_path = os.path.join(domain_path, "preprocess_config.yaml")
+    config_path = os.path.join(domain_path, config_name)
 
     with open(config_path, "r") as f:
         config = yaml.safe_load(f)

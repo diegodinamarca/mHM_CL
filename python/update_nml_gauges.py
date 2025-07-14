@@ -11,7 +11,7 @@ import f90nml
 import yaml
 import shutil
 
-def update_evaluation_gauges(domain_path):
+def update_evaluation_gauges(domain_path, config_name="preprocess_config.yaml"):
     """Update the evaluation gauge list inside ``mhm.nml`` for a domain.
 
     Parameters
@@ -27,7 +27,7 @@ def update_evaluation_gauges(domain_path):
         and saves a backup of the original file.
     """
 
-    config_path = os.path.join(domain_path, "preprocess_config.yaml")
+    config_path = os.path.join(domain_path, config_name)
     with open(config_path, "r") as f:
         config = yaml.safe_load(f)
 

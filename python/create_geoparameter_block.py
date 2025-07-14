@@ -3,7 +3,7 @@ import os
 import yaml
 import re
 
-def write_geoparam_block(domain_path):
+def write_geoparam_block(domain_path, config_name="preprocess_config.yaml"):
     """Create a GeoParam block from geology definitions and write it to disk.
 
     Parameters
@@ -20,7 +20,7 @@ def write_geoparam_block(domain_path):
     """
 
     # === Load config to get folders ===
-    config_path = os.path.join(domain_path, "preprocess_config.yaml")
+    config_path = os.path.join(domain_path, config_name)
 
     with open(config_path, "r") as f:
         config = yaml.safe_load(f)
