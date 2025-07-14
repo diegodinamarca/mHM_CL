@@ -4,7 +4,7 @@ import shutil
 import f90nml
 from dateutil import parser as date_parser
 
-def update_time_periods(domain_path):
+def update_time_periods(domain_path, config_name="preprocess_config.yaml"):
     """
     Updates the &time_periods section in the mhm.nml file based on the start_date and end_date
     specified in the preprocess_config.yaml file located in the domain_path.
@@ -14,7 +14,7 @@ def update_time_periods(domain_path):
     """
 
     # Paths
-    config_path = os.path.join(domain_path, 'preprocess_config.yaml')
+    config_path = os.path.join(domain_path, config_name)
     exe_path = os.path.join(domain_path, 'exe')
     nml_path = os.path.join(exe_path, 'mhm.nml')
     temp_dir = os.path.join(exe_path, 'temp')

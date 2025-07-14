@@ -1,4 +1,5 @@
-preprocess_climate_data <- function(domain_path, remove_temp = TRUE) {
+preprocess_climate_data <- function(domain_path, remove_temp = TRUE,
+                                    config_name = "preprocess_config.yaml") {
   library(yaml)
   library(terra)
   library(sf)
@@ -65,7 +66,7 @@ preprocess_climate_data <- function(domain_path, remove_temp = TRUE) {
     cat("✅ NetCDF successfully written to:", filename, "\n")
   }
   # Load config
-  config_path <- file.path(domain_path, "preprocess_config.yaml")
+  config_path <- file.path(domain_path, config_name)
   config <- read_yaml(config_path)
   
   roi_path <- config$roi_file
@@ -160,7 +161,8 @@ preprocess_climate_data <- function(domain_path, remove_temp = TRUE) {
   }
 }
 
-preprocess_LAI_data = function(domain_path, remove_temp = FALSE, iter_num = 10){
+preprocess_LAI_data = function(domain_path, remove_temp = FALSE, iter_num = 10,
+                               config_name = "preprocess_config.yaml"){
   library(terra)
   library(sf)
   library(yaml)
@@ -168,7 +170,7 @@ preprocess_LAI_data = function(domain_path, remove_temp = FALSE, iter_num = 10){
   # source("scripts/R/utils.R")
   
   # === Load config ===
-  config_path <- file.path(domain_path, "preprocess_config.yaml")
+  config_path <- file.path(domain_path, config_name)
   config <- read_yaml(config_path)
   
   lai_path <- config$lai_file
@@ -231,7 +233,8 @@ preprocess_LAI_data = function(domain_path, remove_temp = FALSE, iter_num = 10){
   }
 }
 
-preprocess_dem_data<- function(domain_path, remove_temp = FALSE) {
+preprocess_dem_data<- function(domain_path, remove_temp = FALSE,
+                               config_name = "preprocess_config.yaml") {
   library(tidyverse)
   library(terra)
   library(sf)
@@ -239,7 +242,7 @@ preprocess_dem_data<- function(domain_path, remove_temp = FALSE) {
   library(whitebox)
   
   # === Load config ===
-  config_path <- file.path(domain_path, "preprocess_config.yaml")
+  config_path <- file.path(domain_path, config_name)
   config <- yaml::read_yaml(config_path)
   
   ref_file <- file.path(domain_path, config$meteo_folder, "pre.nc")
@@ -324,13 +327,14 @@ preprocess_dem_data<- function(domain_path, remove_temp = FALSE) {
   }
 }
 
-preprocess_lc_data = function(domain_path, remove_temp = FALSE){
+preprocess_lc_data = function(domain_path, remove_temp = FALSE,
+                              config_name = "preprocess_config.yaml"){
   library(tidyverse)
   library(terra)
   library(sf)
   library(yaml)
   # leer archivo de configuracion json con rutas de archivos
-  config_path <- file.path(domain_path, "preprocess_config.yaml")
+  config_path <- file.path(domain_path, config_name)
   config <- read_yaml(config_path)
   
   # Paths from config
@@ -406,13 +410,14 @@ preprocess_lc_data = function(domain_path, remove_temp = FALSE){
 }
 
 
-preprocess_geo_data <- function(domain_path, remove_temp = FALSE, source.file = "local") {
+preprocess_geo_data <- function(domain_path, remove_temp = FALSE, source.file = "local",
+                               config_name = "preprocess_config.yaml") {
   library(tidyverse)
   library(terra)
   library(sf)
   library(yaml)
   # leer archivo de configuracion json con rutas de archivos
-  config_path <- file.path(domain_path, "preprocess_config.yaml")
+  config_path <- file.path(domain_path, config_name)
   config <- read_yaml(config_path)
   
   geo_file <- config$geo_file
@@ -540,13 +545,14 @@ preprocess_geo_data <- function(domain_path, remove_temp = FALSE, source.file = 
   }
 }
 
-preprocess_soil_data = function(domain_path, remove_temp = FALSE){
+preprocess_soil_data = function(domain_path, remove_temp = FALSE,
+                               config_name = "preprocess_config.yaml"){
   library(tidyverse)
   library(terra)
   library(sf)
   library(yaml)
   
-  config_path <- file.path(domain_path, "preprocess_config.yaml")
+  config_path <- file.path(domain_path, config_name)
   config_path = "preprocess_config_windows.json"
   config <- read_yaml(config_path)
   
@@ -723,11 +729,12 @@ preprocess_soil_data = function(domain_path, remove_temp = FALSE){
   }
 }
 
-create_roi_mask = function(config_path, remove_temp = FALSE, basin.mask = FALSE){
+create_roi_mask = function(domain_path, config_name = "preprocess_config.yaml",
+                          remove_temp = FALSE, basin.mask = FALSE){
   library(terra)
   library(yaml)
   
-  config_path <- file.path(domain_path, "preprocess_config.yaml")
+  config_path <- file.path(domain_path, config_name)
   config <- read_yaml(config_path)
   morph_folder = file.path(domain_path, config$morph_folder)
   lc_folder = file.path(domain_path, config$lc_folder)
@@ -792,13 +799,14 @@ create_roi_mask = function(config_path, remove_temp = FALSE, basin.mask = FALSE)
 }
 
 
-preprocess_streamflow_data = function(domain_path, remove_temp = FALSE){
+preprocess_streamflow_data = function(domain_path, remove_temp = FALSE,
+                                      config_name = "preprocess_config.yaml"){
   library(yaml)
   library(lubridate)
   library(tidyverse)
   
   # === Load configuration ===
-  config_path <- file.path(domain_path, "preprocess_config.yaml")
+  config_path <- file.path(domain_path, config_name)
   config <- read_yaml(config_path)
   
   gauges_file = config$fluv_station_file
@@ -869,14 +877,15 @@ preprocess_streamflow_data = function(domain_path, remove_temp = FALSE){
   }
 }
 
-create_idgauges = function(domain_path, remove_temp = FALSE){
+create_idgauges = function(domain_path, remove_temp = FALSE,
+                           config_name = "preprocess_config.yaml"){
   library(sf)
   library(terra)
   library(readr)
   library(yaml)
   
   # === Load config ===
-  config_path <- file.path(domain_path, "preprocess_config.yaml")
+  config_path <- file.path(domain_path, config_name)
   config <- read_yaml(config_path)
   
   gauge_file <- config$fluv_station_file
