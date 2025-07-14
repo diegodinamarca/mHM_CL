@@ -734,7 +734,7 @@ get_qmm_table <- function(domain_path, crop_to_roi = TRUE) {
   library(sf)
   library(yaml)
   library(tidyverse)
-  
+  # browser()
   # === Load config and paths ===
   config_path <- file.path(domain_path, "preprocess_config.yaml")
   config <- read_yaml(config_path)
@@ -765,12 +765,23 @@ get_qmm_table <- function(domain_path, crop_to_roi = TRUE) {
   nc <- rast(nc_path, subds = "Q")
   names(nc) <- as.character(time(nc))  # Assign date names to layers
   
-  val <- terra::extract(nc, gauges_roi)
-  val$ID <- gauges_roi$ID
   
+  basins = "/Volumes/KINGSTON/FONDECYT_CAMILA/mHM_CL/DATA/SHP/Cuencas_CAMELS/CAMELS_CL_v202201/camels_cl_boundaries/camels_cl_boundaries.shp"
+  basins = read_sf(basins)
+  basins = basins %>% filter(gauge_id %in% gauge_list)
+  
+  basins_area = basins %>% mutate(area_m2 = area_km2*(1000^2)) %>% pull(area_km2)
+  
+  val <- terra::extract(nc, basins)
+  val$ID <- basins$gauge_id
   df_sim <- val %>%
     as_tibble() %>%
-    pivot_longer(cols = -ID, names_to = "date", values_to = "Q_sim") %>%
+    group_by(ID) %>% 
+    summarise_all(mean, na.rm = TRUE) %>%
+    select(-ID) %>% 
+    bind_cols(ID = basins$gauge_id, 
+              area = basins$area_km2) %>%
+    pivot_longer(cols = !c(starts_with("ID"), starts_with("area")), names_to = "date", values_to = "Q_sim") %>%
     mutate(date = as.Date(date))
   
   # === Read CAMELS observation ===

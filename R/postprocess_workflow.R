@@ -26,7 +26,7 @@ source("R/utils.r")
 # }
 
 # set the path for the domain
-domain_path = "../domain_zone_6"
+domain_path = "../domain_7339001"
 
 # # visualizar todos los outputs y forcings de un dominio
 # out.img = file.path(domain_path, "FIGS/annual_output_default.png")
@@ -35,7 +35,7 @@ domain_path = "../domain_zone_6"
 # extraer y escribir un archivo nc de una variable
 variables = c("snowpack","SM_Lall","satSTW","aET","Q",
               "SM_L01","SM_L02","SM_L03","SM_L04","SM_L05","SM_L06")
-for (j in 5:5){
+for (j in c(1:11)){
   print(variables[j])
   write_output(domain_path, var_name = variables[j], ts = "month", roi_mask = TRUE)
 }
