@@ -1,7 +1,8 @@
 #' Shiny application integrating raster navigation, coordinate selection and
 #' time series visualization modules.
 #'
-#' Allows users to dynamically choose raster files and a NetCDF file,
+#' Allows users to dynamically choose raster files and browse for a NetCDF file
+#' on disk,
 #' navigate through the rasters, select coordinates either from a CSV file or
 #' manual entry, extract a time series at the chosen point and visualise it
 #' interactively.
@@ -18,6 +19,7 @@ library(terra)
 library(plotly)
 library(ggplot2)
 library(dplyr)
+library(shinyFiles)
 
 # Source modules and helper function --------------------------------------
 source("visual_annual_mean/raster_navigation_module.R")
@@ -34,7 +36,7 @@ ui <- fluidPage(
            fileInput("raster_files", "Select raster files",
                      multiple = TRUE,
                      accept = c(".tif", ".nc")),
-           fileInput("nc_file", "Select NetCDF file", accept = ".nc")
+          shinyFilesButton("nc_file", "Select NetCDF file", "Browse", multiple = FALSE)
     )
   ),
   fluidRow(
@@ -52,13 +54,18 @@ ui <- fluidPage(
 # Server ------------------------------------------------------------------
 server <- function(input, output, session) {
 
+  volumes <- c(Home = path.expand("~"), WD = getwd())
+  shinyFiles::shinyFileChoose(input, "nc_file", roots = volumes,
+                              session = session, filetypes = c("nc"))
+
   raster_files_react <- reactive({
     if (is.null(input$raster_files)) character(0) else input$raster_files$datapath
   })
 
   nc_file_react <- reactive({
     req(input$nc_file)
-    input$nc_file$datapath
+    parsed <- shinyFiles::parseFilePaths(volumes, input$nc_file)
+    as.character(parsed$datapath[1])
   })
 
   # Initialise modules -----------------------------------------------------
