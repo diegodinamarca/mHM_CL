@@ -1,9 +1,10 @@
 #' Shiny application integrating raster navigation, coordinate selection and
 #' time series visualization modules.
 #'
-#' Allows users to navigate raster files, select coordinates either from a CSV
-#' file or manual entry, extract a time series from a NetCDF file at the chosen
-#' point and visualise it interactively.
+#' Allows users to dynamically choose raster files and a NetCDF file,
+#' navigate through the rasters, select coordinates either from a CSV file or
+#' manual entry, extract a time series at the chosen point and visualise it
+#' interactively.
 #'
 #' The application assumes all spatial data use EPSG:4326.
 #'
@@ -24,15 +25,18 @@ source("visual_annual_mean/coordinate_selector_module.R")
 source("visual_annual_mean/extract_timeseries.R")
 source("visual_annual_mean/timeseries_plot_module.R")
 
-# Vector of raster files to visualise. Update the path/pattern as needed.
-raster_files <- list.files("rasters", pattern = "\.(tif|nc)$", full.names = TRUE)
-
-# Path to NetCDF file containing the time series information.
-nc_file <- "mhm_fluxes_states.nc"
 
 # UI ----------------------------------------------------------------------
 ui <- fluidPage(
   titlePanel("Raster visualisation and time series extraction"),
+  fluidRow(
+    column(6,
+           fileInput("raster_files", "Select raster files",
+                     multiple = TRUE,
+                     accept = c(".tif", ".nc")),
+           fileInput("nc_file", "Select NetCDF file", accept = ".nc")
+    )
+  ),
   fluidRow(
     column(6,
            raster_navigation_ui("raster_nav")
@@ -48,8 +52,17 @@ ui <- fluidPage(
 # Server ------------------------------------------------------------------
 server <- function(input, output, session) {
 
+  raster_files_react <- reactive({
+    if (is.null(input$raster_files)) character(0) else input$raster_files$datapath
+  })
+
+  nc_file_react <- reactive({
+    req(input$nc_file)
+    input$nc_file$datapath
+  })
+
   # Initialise modules -----------------------------------------------------
-  raster_react <- raster_navigation_server("raster_nav", raster_files)
+  raster_react <- raster_navigation_server("raster_nav", raster_files_react)
   coords_react <- coordinate_selector_server("coords")
 
   # Overlay selected points on raster map ---------------------------------
@@ -66,8 +79,8 @@ server <- function(input, output, session) {
   # Extract time series at first selected point ---------------------------
   ts_data <- reactive({
     pts <- coords_react()
-    req(nrow(pts) > 0)
-    extract_timeseries_at_point(pts[1, ], nc_file)
+    req(nrow(pts) > 0, nc_file_react())
+    extract_timeseries_at_point(pts[1, ], nc_file_react())
   })
 
   timeseries_plot_server("ts_plot", ts_data)
