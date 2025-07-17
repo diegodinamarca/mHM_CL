@@ -15,6 +15,7 @@ raster_navigation_ui <- function(id) {
       shiny::actionButton(ns("prev"), "Previous"),
       shiny::span(shiny::textOutput(ns("counter"), inline = TRUE),
                   style = "margin: 0 10px;"),
+      shiny::actionButton(ns("next_btn"), "Next")
       shiny::actionButton(ns("next"), "Next")
     )
   )
@@ -28,6 +29,7 @@ raster_navigation_ui <- function(id) {
 #'
 #' @param id Module ID.
 #' @param raster_files Character vector with paths to raster files (`.tif` or
+#'   `.nc`).
 #'   `.nc`) or a reactive expression returning such a vector. The list can be
 #'   updated dynamically.
 #'
@@ -35,6 +37,18 @@ raster_navigation_ui <- function(id) {
 #' @export
 raster_navigation_server <- function(id, raster_files) {
   moduleServer(id, function(input, output, session) {
+    n <- length(raster_files)
+    idx <- reactiveVal(1)
+
+    observeEvent(input$prev, {
+      if (idx() > 1) idx(idx() - 1)
+    })
+    observeEvent(input$next_btn, {
+      if (idx() < n) idx(idx() + 1)
+    })
+
+    current_raster <- reactive({
+      r <- terra::rast(raster_files[idx()])
     files <- if (shiny::is.reactive(raster_files)) raster_files else shiny::reactive(raster_files)
     idx <- reactiveVal(1)
 
@@ -62,6 +76,16 @@ raster_navigation_server <- function(id, raster_files) {
       rng <- range(terra::values(r), na.rm = TRUE)
       pal <- leaflet::colorNumeric(viridisLite::viridis(256), rng,
                                    na.color = "transparent")
+      var_name <- names(r)[1]
+      leaflet::leaflet() %>%
+        leaflet::addTiles() %>%
+        leaflet::addRasterImage(r, colors = pal, opacity = 0.8) %>%
+        leaflet::addLegend(pal = pal, values = rng, title = var_name) %>%
+        leaflet::addControl(var_name, position = "topleft")
+    })
+
+    output$counter <- shiny::renderText({
+      sprintf("Raster %d de %d", idx(), n)
       leaflet::leaflet() %>%
         leaflet::addTiles() %>%
         leaflet::addRasterImage(r, colors = pal, opacity = 0.8) %>%
