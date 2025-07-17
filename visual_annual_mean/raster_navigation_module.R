@@ -15,7 +15,7 @@ raster_navigation_ui <- function(id) {
       shiny::actionButton(ns("prev"), "Previous"),
       shiny::span(shiny::textOutput(ns("counter"), inline = TRUE),
                   style = "margin: 0 10px;"),
-      shiny::actionButton(ns("next"), "Next")
+      shiny::actionButton(ns("next_btn"), "Next")
     )
   )
 }
@@ -47,7 +47,7 @@ raster_navigation_server <- function(id, raster_files) {
     observeEvent(input$prev, {
       if (idx() > 1) idx(idx() - 1)
     })
-    observeEvent(input$next, {
+    observeEvent(input$next_btn, {
       if (idx() < n_files()) idx(idx() + 1)
     })
 

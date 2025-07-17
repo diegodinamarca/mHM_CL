@@ -20,10 +20,10 @@ library(ggplot2)
 library(dplyr)
 
 # Source modules and helper function --------------------------------------
-source("visual_annual_mean/raster_navigation_module.R")
-source("visual_annual_mean/coordinate_selector_module.R")
-source("visual_annual_mean/extract_timeseries.R")
-source("visual_annual_mean/timeseries_plot_module.R")
+source("raster_navigation_module.R")
+source("coordinate_selector_module.R")
+source("extract_timeseries.R")
+source("timeseries_plot_module.R")
 
 
 # UI ----------------------------------------------------------------------

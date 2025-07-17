@@ -6,13 +6,13 @@ library(yaml)
 source("R/utils.r")
 
 # set the path for the domain
-domain_path = "../domain_zone_7"
+domain_path = "../domain_12622001"
 config_name = "preprocess_config_calib.yaml"
 
 # visualizar todos los outputs y forcings de un dominio
 out.img = file.path(domain_path, "FIGS/annual_output_default.png")
 dir.create(file.path(domain_path, "FIGS"))
-visualize_annual_outputs(domain_path, mask_roi = TRUE, filename = out.img, config_name = config_name)
+calculate_annual_mean(domain_path, mask_roi = TRUE, config_name = config_name)
 
 # extraer y escribir un archivo nc de una variable
 variables = c("snowpack","SM_Lall","satSTW","aET","Q",

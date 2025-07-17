@@ -70,22 +70,28 @@ extract_asc_header <- function(asc_file, output_folder) {
   cat("Header successfully written to", header_file, "\n")
 }
 
-#' Compute annual mean across years
+#' Compute annual mean or sum from a SpatRaster with time dimension or provided dates
 #'
-#' Summarizes a SpatRaster with monthly layers by first aggregating to yearly
-#' values using either the sum or mean of the months, and then averaging across
-#' all available years.
-#'
-#' @param r A [`terra::SpatRaster`] with a monthly time dimension.
-#' @param fun Character. Either "mean" or "sum" specifying how to aggregate the
-#'   months of each year.
-#' @return A single-layer SpatRaster representing the long term annual mean.
-#' @export
-annual_mean <- function(r, fun = c("mean", "sum")) {
+#' @param r SpatRaster object.
+#' @param fun Aggregation function: "mean" or "sum".
+#' @param dates_vector Optional vector of dates (POSIXct or Date) to use when time(r) is NULL.
+#' @return SpatRaster of the mean across years.
+annual_mean <- function(r, fun = c("mean", "sum"), dates_vector = NULL) {
+  # browser()
   fun <- match.arg(fun)
+  
   tvec <- terra::time(r)
+  
+  if (is.null(tvec) || all(is.na(tvec))) {
+    if (is.null(dates_vector)) {
+      stop("Raster has no time information and no dates_vector provided.")
+    }
+    tvec <- dates_vector
+  }
+  
   years <- format(tvec, "%Y")
   idx <- split(seq_along(years), years)
+  
   yearly <- lapply(idx, function(i) {
     if (fun == "sum") {
       sum(r[[i]], na.rm = TRUE)
@@ -93,9 +99,11 @@ annual_mean <- function(r, fun = c("mean", "sum")) {
       mean(r[[i]], na.rm = TRUE)
     }
   })
+  
   yearly <- rast(yearly)
   mean(yearly, na.rm = TRUE)
 }
+
 
 #' Aggregate daily data to monthly values
 #'
@@ -1041,4 +1049,179 @@ streamflow_data_range <- function(df, id = NULL) {
               start = min(date),
               end = max(date),
               years = n/365)
+}
+
+
+#' Calculate and store annual mean rasters for key hydrological variables
+#'
+#' Reads either monthly `.tif` files or extracts from mHM_Fluxes_States.nc
+#' and computes annual means, saving them into `annual_mean` subfolder
+#' inside `out_folder` as defined in `config_name`.
+#'
+#' @param domain_path Path to the model domain containing config and data.
+#' @param mask_roi Logical. If `TRUE`, apply ROI mask.
+#' @param roi_file Optional path to an ROI file.
+#' @param config_name Configuration filename (default: preprocess_config.yaml).
+#' @export
+calculate_annual_mean <- function(domain_path, mask_roi = FALSE, roi_file = NULL,
+                                  config_name = "preprocess_config.yaml") {
+  library(terra)
+  library(yaml)
+  library(lubridate)
+  # browser()
+  variables <- c("snowpack", "SM_Lall", "satSTW", "aET", "Q",
+                 "SM_L01", "SM_L02", "SM_L03", "SM_L04", "SM_L05", "SM_L06")
+  
+  config_path <- file.path(domain_path, config_name)
+  config <- yaml::read_yaml(config_path)
+  out_folder <- config$out_folder
+  res_file <- file.path(domain_path, out_folder, "mHM_Fluxes_States.nc")
+  
+  roi <- NULL
+  if (!is.null(roi_file)) {
+    roi <- vect(roi_file)
+  } else if (mask_roi) {
+    roi_path <- config$roi_file
+    if (!grepl("^(/|[A-Za-z]:)", roi_path)) {
+      roi_path <- file.path(domain_path, roi_path)
+    }
+    roi <- vect(roi_path)
+  }
+  
+  out_dir <- file.path(domain_path, out_folder, "annual_mean")
+  dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
+  
+  for (v in variables) {
+    tif_path <- file.path(domain_path, out_folder, v, paste0(v, "_month.tif"))
+    
+    r <- NULL
+    dates_vector <- NULL
+    
+    if (file.exists(tif_path)) {
+      r <- rast(tif_path)
+      tvec <- time(r)
+      if (is.null(tvec) || all(is.na(tvec))) {
+        message("Raster ", v, "_month.tif has empty or NA time. Recovering from NC...")
+        r_nc <- try(rast(res_file, subds = v), silent = TRUE)
+        if (inherits(r_nc, "try-error")) {
+          warning("Variable ", v, " not found in NC for fallback.")
+          next
+        }
+        tvec_nc <- time(r_nc)
+        tvec_nc <- unique(floor_date(tvec_nc, "month"))
+        dates_vector <- tvec_nc
+      }
+    } else {
+      message("Reading ", v, " directly from mHM_Fluxes_States.nc")
+      r <- try(rast(res_file, subds = v), silent = TRUE)
+      if (inherits(r, "try-error")) {
+        warning("Variable ", v, " not found in sources.")
+        next
+      }
+    }
+    
+    fun <- if (v %in% c("snowpack", "SM_Lall", "satSTW",
+                        "SM_L01", "SM_L02", "SM_L03", "SM_L04", "SM_L05", "SM_L06")) "mean" else "sum"
+    
+    # Llamada robusta a annual_mean considerando dates_vector
+    r_ann <- annual_mean(r, fun = fun, dates_vector = dates_vector)
+    
+    if (!is.null(roi)) {
+      r_ann <- crop(r_ann, roi) |> mask(roi)
+    }
+    
+    out_file <- file.path(out_dir, paste0(v, "_annual_mean.tif"))
+    writeRaster(r_ann, out_file, overwrite = TRUE)
+    message("Saved annual mean for ", v, " at ", out_file)
+  }
+}
+
+
+#' Visualize annual mean rasters as 2x5 panel figure
+#'
+#' Reads annual mean rasters from `annual_mean` folder inside `out_folder`
+#' defined in `config_name` and generates a PNG figure showing selected variables.
+#'
+#' @param domain_path Path to the model domain.
+#' @param mask_roi Logical. If `TRUE`, apply ROI mask.
+#' @param roi_file Optional path to ROI file.
+#' @param png_filename Path to save the PNG figure.
+#' @param config_name Configuration filename (default: preprocess_config.yaml).
+#' @export
+visualize_annual_mean <- function(domain_path, mask_roi = FALSE, roi_file = NULL,
+                                  png_filename = NULL, config_name = "preprocess_config.yaml") {
+  library(terra)
+  library(yaml)
+  
+  variables <- c("snowpack", "SM_Lall", "satSTW", "aET", "Q")
+  config_path <- file.path(domain_path, config_name)
+  config <- yaml::read_yaml(config_path)
+  out_folder <- config$out_folder
+  meteo_folder <- file.path(domain_path, config$meteo_folder)
+  
+  roi <- NULL
+  if (!is.null(roi_file)) {
+    roi <- vect(roi_file)
+  } else if (mask_roi) {
+    roi_path <- config$roi_file
+    if (!grepl("^(/|[A-Za-z]:)", roi_path)) {
+      roi_path <- file.path(domain_path, roi_path)
+    }
+    roi <- vect(roi_path)
+  }
+  
+  ann_dir <- file.path(domain_path, out_folder, "annual_mean")
+  
+  pre <- rast(file.path(meteo_folder, "pre.nc"), subds = "pre")
+  pet <- rast(file.path(meteo_folder, "pet.nc"), subds = "pet")
+  
+  pre_ann <- annual_mean(pre, "sum")
+  pet_ann <- annual_mean(pet, "sum")
+  
+  if (!is.null(roi)) {
+    pre_ann <- crop(pre_ann, roi) |> mask(roi)
+    pet_ann <- crop(pet_ann, roi) |> mask(roi)
+  }
+  
+  ann_rasters <- list()
+  for (v in variables) {
+    tif_path <- file.path(ann_dir, paste0(v, "_annual_mean.tif"))
+    if (file.exists(tif_path)) {
+      r <- rast(tif_path)
+      if (!is.null(roi)) {
+        r <- crop(r, roi) |> mask(roi)
+      }
+      ann_rasters[[v]] <- r
+    } else {
+      warning("Annual mean for ", v, " not found.")
+    }
+  }
+  
+  disp_ann <- pre_ann - ann_rasters[["aET"]]
+  
+  flux_range <- range(c(values(pre_ann), values(pet_ann),
+                        values(ann_rasters[["aET"]]), values(ann_rasters[["Q"]]),
+                        values(disp_ann)), na.rm = TRUE)
+  
+  state_range <- range(c(values(ann_rasters[["SM_Lall"]]),
+                         values(ann_rasters[["snowpack"]]),
+                         values(ann_rasters[["satSTW"]])), na.rm = TRUE)
+  
+  png(png_filename, width = 2000, height = 1000, res = 150)
+  par(mfrow = c(2,5), mar = c(4,4,2,5))
+  
+  plot(pre_ann, main = "Precipitation", zlim = flux_range)
+  plot(pet_ann, main = "Potential ET", zlim = flux_range)
+  plot(ann_rasters[["aET"]], main = "Actual ET", zlim = flux_range)
+  plot(ann_rasters[["Q"]], main = "Runoff", zlim = flux_range)
+  plot(disp_ann, main = "Pr - ET", zlim = flux_range)
+  
+  plot(ann_rasters[["SM_Lall"]], main = "Soil Moisture", zlim = state_range)
+  plot(ann_rasters[["snowpack"]], main = "Snowpack", zlim = state_range)
+  plot(ann_rasters[["satSTW"]], main = "GW Level", zlim = state_range)
+  plot.new()
+  text(0.5, 0.5, "Summary Map", cex = 1.2)
+  
+  dev.off()
+  message("Figure saved to: ", png_filename)
 }
