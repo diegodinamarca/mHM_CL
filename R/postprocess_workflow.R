@@ -5,39 +5,21 @@ library(sf)
 library(yaml)
 source("R/utils.r")
 
-
-# process_pet_pr <- function(domain_path) {
-#     process_meteo_variable(domain_path = domain_path, var_name = "pre", roi_mask = TRUE)
-#     process_meteo_variable(domain_path = domain_path, var_name = "pet", roi_mask = TRUE)
-# }
-# process_pet_pr("9404001")
-
-# for processing all the zones at one 
-# for (i in 1:7){
-#   domain_path = paste0("../domain_zone_",i)
-#   process_pet_pr(domain_path)
-# }
-
-# for processing all basin ids at once
-# domain_list = list_domain_ids()
-# for (d in domein_list){
-#   domain_path = d
-#   process_pet_pr(domain_path)
-# }
-
 # set the path for the domain
-domain_path = "../domain_7339001"
+domain_path = "../domain_zone_7"
+config_name = "preprocess_config_calib.yaml"
 
-# # visualizar todos los outputs y forcings de un dominio
-# out.img = file.path(domain_path, "FIGS/annual_output_default.png")
-# visualize_annual_outputs(domain_path, mask_roi = TRUE, filename = out.img)
+# visualizar todos los outputs y forcings de un dominio
+out.img = file.path(domain_path, "FIGS/annual_output_default.png")
+dir.create(file.path(domain_path, "FIGS"))
+visualize_annual_outputs(domain_path, mask_roi = TRUE, filename = out.img, config_name = config_name)
 
 # extraer y escribir un archivo nc de una variable
 variables = c("snowpack","SM_Lall","satSTW","aET","Q",
               "SM_L01","SM_L02","SM_L03","SM_L04","SM_L05","SM_L06")
 for (j in c(1:11)){
   print(variables[j])
-  write_output(domain_path, var_name = variables[j], ts = "month", roi_mask = TRUE)
+  write_output(domain_path, var_name = variables[j], ts = "month", roi_mask = TRUE, config_name = config_name)
 }
 
 # # Procesar todas las zonas
@@ -59,9 +41,9 @@ for (j in c(1:11)){
 # mosaic_outputs(domain_folders)
 
 # Extract gridded runoff values (mm) and routing generated runoff (m3/s)
-config_path <- file.path(domain_path, "preprocess_config.yaml")
+config_path <- file.path(domain_path, config_name)
 config = read_yaml(config_path)
-df.mm <- get_qmm_table(domain_path, crop_to_roi = TRUE)
+df.mm <- get_qmm_table(domain_path, crop_to_roi = TRUE, config_name = config_name)
 
 discharge = file.path(domain_path, config$out_folder, "discharge.nc")
 df <- get_qm3s_table(discharge)
@@ -115,9 +97,9 @@ df.full %>% write_csv(file.path(domain_path, config$out_folder, "streamflow","st
 #     filter(ID == 1021001)
 # }
 
-# extract single variable from mhm output
-df.q = extract_roi_timeseries("domain_zone_4/OUT/mHM_Fluxes_States.nc", var_name = "Q", roi_file = basin)
-# extract all outputs from mhm output
-df = extract_roi_timeseries_all("domain_zone_4/OUT/mHM_Fluxes_States.nc", roi_file = basin)
-# process forcings to monthly, yearly and annual mean for visualization
-visualize_mosaic_full_outputs("domain_chile/OUT") # this function takes too long
+# # extract single variable from mhm output
+# df.q = extract_roi_timeseries("domain_zone_4/OUT/mHM_Fluxes_States.nc", var_name = "Q", roi_file = basin)
+# # extract all outputs from mhm output
+# df = extract_roi_timeseries_all("domain_zone_4/OUT/mHM_Fluxes_States.nc", roi_file = basin)
+# # process forcings to monthly, yearly and annual mean for visualization
+# visualize_mosaic_full_outputs("domain_chile/OUT") # this function takes too long

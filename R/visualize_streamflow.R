@@ -11,19 +11,19 @@ source("R/utils.r")
 # FUNCIONES
 # ============================
 
-read_and_merge_streamflow <- function() {
+read_and_merge_streamflow <- function(config_name = "preprocess_config.yaml") {
   df <- tibble()
   # browser()
   if (use_multiple_domains) {
     dir.list <- dir("..", pattern = "domain_zone", full.names = TRUE)
     for (domain in dir.list) {
-      config_path <- file.path(domain, "preprocess_config.yaml")
+      config_path <- file.path(domain, config_name)
       config <- read_yaml(config_path)
       x <- read_csv(file.path(domain, config$out_folder, "streamflow", "streamflow_data.csv"))
       df <- bind_rows(df, x)
     }
   } else {
-    config_path <- file.path(domain_path, "preprocess_config.yaml")
+    config_path <- file.path(domain_path, config_name)
     config <- read_yaml(config_path)
     df <- read_csv(file.path(domain_path, config$out_folder, "streamflow", "streamflow_data.csv"))
   }
@@ -230,11 +230,12 @@ plot_basin_streamflow_comparison <- function(df, config, out_figs, basins, singl
 # ============================
 
 use_multiple_domains <- FALSE
-domain_path <- "../domain_zone_6"
+domain_path <- "../domain_11337001"
 start_date <- as.Date("1980-01-01")
 end_date <- as.Date("2020-12-31")
 av_threshold <- 0
-suffix = "_default"
+suffix = "_calib"
+config_name = "preprocess_config_calib.yaml"
 
 # ============================
 # WORKFLOW PRINCIPAL
@@ -242,7 +243,7 @@ suffix = "_default"
 
 main <- function() {
   library(ggpubr)
-  res <- read_and_merge_streamflow()
+  res <- read_and_merge_streamflow(config_name)
   df <- res$df
   config <- res$config
   

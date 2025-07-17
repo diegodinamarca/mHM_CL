@@ -778,7 +778,7 @@ get_qmm_table <- function(domain_path, crop_to_roi = TRUE,
   basins_area = basins %>% mutate(area_m2 = area_km2*(1000^2)) %>% pull(area_km2)
   
   val <- terra::extract(nc, basins)
-  val$ID <- basins$gauge_id
+  # val$ID <- basins$gauge_id
   df_sim <- val %>%
     as_tibble() %>%
     group_by(ID) %>% 
@@ -1031,6 +1031,9 @@ plot_metric_map <- function(rast, metrics_sf, metric = "kge", metric_name = NULL
 }
 
 streamflow_data_range <- function(df, id = NULL) {
+  if (is.null(df)){
+    df = read_csv("/Volumes/KINGSTON/FONDECYT_CAMILA/mHM_CL/DATA/SHP/Cuencas_CAMELS/CAMELS_CL_v202201/q_m3s_day.csv")
+  }
   if (!is.null(id))
     df %>% dplyr::select(date, all_of(id)) %>% 
     drop_na() %>% 
