@@ -25,11 +25,17 @@ Se creará la carpeta `FIGS/` en caso de no existir y se escribirán allí las f
 - **calculate_annual_mean** y **visualize_annual_mean**: calculan promedios anuales y guardan una imagen resumen.
 - **get_qmm_table** y **get_qm3s_table**: extraen series de caudal en milímetros y metros cúbicos por segundo.
 - Combina ambas tablas en `streamflow/streamflow_data.csv` dentro de la carpeta `OUT`.
+- A partir de esos datos calcula métricas de desempeño (R2 y KGE) y genera mapas
+  y gráficos comparativos del caudal simulado versus observado.
+- Las funciones **read_and_merge_streamflow**, **setup_output_paths** y los
+  distintos gráficos de evaluación de caudal se encuentran ahora en
+  [`R/utils.R`](R/utils.R) y pueden reutilizarse en otros scripts.
 
 ## Salidas generadas
 
 - Archivos NetCDF mensuales en `OUT`.
 - Gráficos en `FIGS/annual_output_default.png`.
 - Tabla de caudal observada y simulada en `OUT/streamflow/`.
+- Mapas, boxplots y distribuciones acumuladas de las métricas de evaluación en `FIGS/`.
 
 Estas utilidades permiten analizar rápidamente tanto las forzantes como las salidas del modelo.
