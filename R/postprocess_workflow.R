@@ -3,11 +3,29 @@ library(tidyverse)
 library(stars)
 library(sf)
 library(yaml)
+library(ggpubr)
+library(lubridate)
 source("R/utils.r")
 
-# set the path for the domain
+# ---------------------------------------------------------------------------
+# User configurable parameters
+# ---------------------------------------------------------------------------
+# domain_path       : Directory containing the mHM domain outputs
+# config_name       : YAML configuration file produced during preprocessing
+# use_multiple_domains : Set to TRUE to merge results from several domains
+# start_date/end_date  : Date range to compute streamflow performance metrics
+# av_threshold      : Minimum percentage of available observations required
+#                     to include a gauge in the evaluation
+# suffix            : String appended to the names of generated figures
+# out.img           : Path for the summary image of annual means
+# ---------------------------------------------------------------------------
 domain_path = "../domain_zone_5"
 config_name = "preprocess_config_default.yaml"
+use_multiple_domains <- FALSE
+start_date <- as.Date("1980-01-01")
+end_date <- as.Date("2020-12-31")
+av_threshold <- 50
+suffix <- "_default"
 out.img = file.path(domain_path, "FIGS/annual_output_default.png")
 dir.create(file.path(domain_path, "FIGS"))
 
@@ -51,9 +69,28 @@ df.full = df.mm %>% full_join(df, by = c("ID","date"), suffix = c("_mm","_m3s"))
 dir.create(file.path(domain_path, config$out_folder,"streamflow"))
 df.full %>% write_csv(file.path(domain_path, config$out_folder, "streamflow","streamflow_data.csv"))
 
-# # extract single variable from mhm output
-# df.q = extract_roi_timeseries("domain_zone_4/OUT/mHM_Fluxes_States.nc", var_name = "Q", roi_file = basin)
-# # extract all outputs from mhm output
-# df = extract_roi_timeseries_all("domain_zone_4/OUT/mHM_Fluxes_States.nc", roi_file = basin)
-# # process forcings to monthly, yearly and annual mean for visualization
-# visualize_mosaic_full_outputs("domain_chile/OUT") # this function takes too long
+
+# --------------------------------------------------
+# Visualise streamflow performance metrics
+# --------------------------------------------------
+res <- read_and_merge_streamflow(config_name)
+df.stream <- res$df
+config <- res$config
+paths <- setup_output_paths(config)
+
+metrics <- calculate_metrics(df.stream, config, paths$out_folder)
+plot_metrics_maps(metrics, paths$map_file, paths$out_figs,
+                  plot_name = paste0("gauge_metrics", suffix, ".png"))
+plot_metrics_boxplot(metrics, "r2", paths$out_figs,
+                     plot_name = paste0("boxplot_r2", suffix, ".png"))
+plot_metrics_boxplot(metrics, "kge", paths$out_figs,
+                     plot_name = paste0("boxplot_kge", suffix, ".png"))
+plot_cdf(metrics, "kge", paths$out_figs,
+         plot_name = paste0("cdf_kge", suffix, ".png"))
+plot_streamflow_comparison(df.stream, paths$out_figs,
+                           plot_name = paste0("streamflow_comparison", suffix, ".png"))
+
+basins <- c(9414001, 11337001, 7339001, 5710001)
+plot_basin_streamflow_comparison(df.stream, config, paths$out_figs, basins, single_gauge = TRUE,
+                                 plot_name = paste0("streamflow_basin", suffix, ".png"))
+

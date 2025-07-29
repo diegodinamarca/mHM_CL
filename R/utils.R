@@ -1172,5 +1172,290 @@ read_domain_area = function(domain_path, config_name){
   
   # Print the result
   print(area)
-  
+
+}
+
+#' Merge streamflow tables from one or multiple domains
+#'
+#' Reads `streamflow_data.csv` produced during post-processing and merges
+#' all domains if `use_multiple_domains` is `TRUE`. Erroneous values in the
+#' simulated series are filtered out.
+#'
+#' @param config_name Name of the configuration file used to locate outputs.
+#' @return A list with elements `df` (data frame) and `config` (parsed yaml).
+#' @export
+read_and_merge_streamflow <- function(config_name = "preprocess_config.yaml") {
+  df <- tibble()
+  if (use_multiple_domains) {
+    dir.list <- dir("..", pattern = "domain_zone", full.names = TRUE)
+    for (domain in dir.list) {
+      config_path <- file.path(domain, config_name)
+      config <- read_yaml(config_path)
+      x <- read_csv(file.path(domain, config$out_folder, "streamflow", "streamflow_data.csv"))
+      df <- bind_rows(df, x)
+    }
+  } else {
+    config_path <- file.path(domain_path, config_name)
+    config <- read_yaml(config_path)
+    df <- read_csv(file.path(domain_path, config$out_folder, "streamflow", "streamflow_data.csv"))
+  }
+
+  fault.ID <- df %>% filter(Q_sim_m3s > 1e6 | Q_sim_m3s < 0) %>% pull(ID) %>% unique()
+  df <- df %>% filter(!(ID %in% fault.ID))
+
+  list(df = df, config = config)
+}
+
+#' Prepare folders and paths for streamflow graphics
+#'
+#' Creates the metrics output folder and the `FIGS` directory, returning
+#' their paths together with the location of the routing raster used for maps.
+#'
+#' @param config Configuration list read from YAML.
+#' @return List with `out_figs`, `out_folder` and `map_file`.
+#' @export
+setup_output_paths <- function(config) {
+  if (use_multiple_domains) {
+    out_figs <- "../FIGS"
+    out_folder <- "../domain_Chile/out/metrics"
+    map_file <- "../domain_Chile/out/Q.nc"
+  } else {
+    out_figs <- file.path(domain_path, "FIGS")
+    out_folder <- file.path(domain_path, config$out_folder, "metrics")
+    map_file <- file.path(domain_path, config$out_folder, "Q", "Q_month.tif")
+  }
+  dir.create(out_folder, recursive = TRUE, showWarnings = FALSE)
+  dir.create(out_figs, recursive = TRUE, showWarnings = FALSE)
+  list(out_figs = out_figs, out_folder = out_folder, map_file = map_file)
+}
+
+#' Compute streamflow performance metrics
+#'
+#' Wrapper around `evaluate_station_metrics()` using the global workflow
+#' configuration. Results are written inside the metrics folder.
+#'
+#' @param df Data frame returned by `read_and_merge_streamflow()`.
+#' @param config Configuration list read from YAML.
+#' @param out_folder Output folder for the metrics table.
+#' @return Tibble of evaluation metrics.
+#' @export
+calculate_metrics <- function(df, config, out_folder) {
+  evaluate_station_metrics(
+    df = df,
+    config_path = "preprocess_config.yaml",
+    start_date = start_date,
+    end_date = end_date,
+    out_folder = out_folder,
+    av_threshold = av_threshold
+  )
+}
+
+#' Plot maps of R2 and KGE metrics
+#'
+#' Generates side-by-side maps showing the spatial distribution of the
+#' performance metrics computed for each gauge.
+#'
+#' @param metrics Data frame with columns `LON`, `LAT`, `r2` and `kge`.
+#' @param map_file Raster file used as background.
+#' @param out_figs Folder where the figure is written.
+#' @param plot_name Filename of the output PNG.
+#' @param r2_threshold Optional numeric filter for R2 values.
+#' @param kge_threshold Optional numeric filter for KGE values.
+#' @export
+plot_metrics_maps <- function(metrics, map_file, out_figs,
+                              plot_name = "gauge_metrics.png",
+                              r2_threshold = NULL,
+                              kge_threshold = NULL) {
+  dates_raw <- str_sub(names(rast(map_file)), start = 2)
+  dates_vec <- as.Date(paste0(dates_raw, ".01"), format = "%Y.%m.%d")
+  metrics_sp <- metrics %>% st_as_sf(coords = c("LON", "LAT"), crs = 4326)
+  r <- rast(map_file) %>% annual_mean(fun = "sum", dates_vector = dates_vec)
+
+  metrics_r2 <- metrics_sp
+  metrics_kge <- metrics_sp
+  if (!is.null(r2_threshold)) {
+    metrics_r2 <- metrics_r2 %>% filter(r2 >= r2_threshold)
+  }
+  if (!is.null(kge_threshold)) {
+    metrics_kge <- metrics_kge %>% filter(kge >= kge_threshold)
+  }
+
+  p1 <- plot_metric_map(r, metrics_r2, metric = "r2", raster_name = "Q [mm]", metric_name = bquote(R^2)) +
+    theme(plot.title = element_text(hjust = 0.5))
+  p2 <- plot_metric_map(r, metrics_kge, metric = "kge", raster_name = "Q [mm]", metric_name = "KGE") +
+    theme(plot.title = element_text(hjust = 0.5))
+
+  p.mat <- ggarrange(p1, p2, nrow = 1, labels = c("a", "b"))
+  ggsave(filename = file.path(out_figs, plot_name), plot = p.mat, width = 10, height = 5)
+}
+
+#' Boxplot of streamflow metrics
+#'
+#' Creates a simple boxplot of the selected metric.
+#'
+#' @param metrics Data frame returned by `calculate_metrics()`.
+#' @param metric_name Name of the metric column to plot.
+#' @param out_figs Folder to write the plot.
+#' @param plot_name Optional filename of the PNG.
+#' @export
+plot_metrics_boxplot <- function(metrics, metric_name, out_figs, plot_name = NULL) {
+  if (is.null(plot_name)) {
+    plot_name <- paste0("boxplot_", metric_name, ".png")
+  }
+
+  p <- ggplot(metrics, aes(y = .data[[metric_name]])) +
+    geom_boxplot(fill = "lightblue", outlier.shape = 21, outlier.fill = "red") +
+    labs(y = metric_name, x = NULL, title = paste("Boxplot of", metric_name))
+
+  ggsave(file.path(out_figs, plot_name), plot = p, width = 4, height = 6)
+}
+
+#' Cumulative distribution function of a metric
+#'
+#' Plots the percentage of gauges exceeding a given metric value.
+#'
+#' @inheritParams plot_metrics_boxplot
+#' @export
+plot_cdf <- function(metrics, metric_name, out_figs, plot_name = NULL) {
+  plot_data <- metrics %>%
+    ungroup() %>%
+    select(ID, !!sym(metric_name)) %>%
+    arrange(desc(!!sym(metric_name))) %>%
+    mutate(rank = row_number(), pct_above = 100 * (rank - 1) / n())
+
+  p.cdf <- ggplot(plot_data, aes(x = !!sym(metric_name), y = 100 - pct_above)) +
+    geom_line(color = "blue") +
+    labs(x = metric_name, y = "% of IDs with metric ≥ x", title = paste("Cumulative distribution of", metric_name)) +
+    theme_bw()
+
+  if (is.null(plot_name)) {
+    plot_name <- paste0("cummulative_distribution_", metric_name, "_gauges.png")
+  }
+
+  ggsave(file.path(out_figs, plot_name), plot = p.cdf, width = 4, height = 4)
+}
+
+#' Compare simulated and observed streamflow
+#'
+#' Generates scatter plots of observed vs simulated runoff with and without
+#' routing at daily and monthly scales.
+#'
+#' @param df Data frame returned by `read_and_merge_streamflow()`.
+#' @param out_figs Folder to write the figure.
+#' @param plot_name Name of the PNG file.
+#' @export
+plot_streamflow_comparison <- function(df, out_figs, plot_name = "streamflow_with_and_without_routing.png") {
+  labels <- c("m3s" = "Runoff with routing (m3/s)", "mm" = "Runoff w/o routing (mm)")
+
+  p1 <- df %>%
+    filter(!is.na(Q_obs_m3s)) %>%
+    pivot_longer(cols = starts_with("Q"), names_sep = "_", names_to = c("var", "source", "unit")) %>%
+    mutate(var = str_c(var, "_", source)) %>%
+    select(ID, date, var, unit, value) %>%
+    pivot_wider(names_from = var, values_from = value) %>%
+    ggplot(aes(x = Q_obs, y = Q_sim)) +
+    facet_wrap(. ~ unit, ncol = 2, scales = "free", labeller = as_labeller(labels)) +
+    geom_point() +
+    ggpubr::stat_cor() +
+    ggtitle("Daily streamflow")
+
+  df.month <- df %>%
+    filter(!is.na(Q_obs_m3s)) %>%
+    mutate(date = floor_date(date, "month")) %>%
+    group_by(ID, date) %>%
+    summarise(count = n(),
+              Q_obs_mm = sum(Q_obs_mm),
+              Q_sim_mm = sum(Q_sim_mm),
+              Q_obs_m3s = mean(Q_obs_m3s),
+              Q_sim_m3s = mean(Q_sim_m3s),
+              .groups = "drop")
+
+  p2 <- df.month %>%
+    filter(count > 28) %>%
+    pivot_longer(cols = starts_with("Q"), names_sep = "_", names_to = c("var", "source", "unit")) %>%
+    mutate(var = str_c(var, "_", source)) %>%
+    select(ID, date, var, unit, value) %>%
+    pivot_wider(names_from = var, values_from = value) %>%
+    ggplot(aes(x = Q_obs, y = Q_sim)) +
+    facet_wrap(. ~ unit, ncol = 2, scales = "free", labeller = as_labeller(labels)) +
+    geom_point() +
+    ggpubr::stat_cor() +
+    ggtitle("Monthly streamflow")
+
+  p.streamflow <- ggpubr::ggarrange(p1, p2, ncol = 1, labels = c("a", "b"))
+  ggsave(filename = file.path(out_figs, plot_name), plot = p.streamflow, width = 8, height = 8)
+}
+
+#' Compare routing effects by basin
+#'
+#' Creates scatter plots for a set of CAMELS-CL basins showing the relation
+#' between routed and non-routed runoff volumes.
+#'
+#' @inheritParams plot_streamflow_comparison
+#' @param config Configuration list with the gauge shapefile path.
+#' @param basins Vector of CAMELS gauge IDs to include.
+#' @param single_gauge Logical. If `TRUE` each basin is compared only against its
+#'   own gauge.
+#' @export
+plot_basin_streamflow_comparison <- function(df, config, out_figs, basins, single_gauge = TRUE,
+                                             plot_name = "simulated_streamflow_routing_by_basin.png") {
+  camels <- read_sf("../DATA/SHP/Cuencas_CAMELS/CAMELS_CL_v202201/camels_cl_boundaries/camels_cl_boundaries.shp")
+  gauges_file <- config$fluv_station_file
+  gauges <- read_sf(gauges_file)
+
+  roi <- camels %>% filter(gauge_id %in% basins)
+  sf::sf_use_s2(FALSE)
+  inter <- st_intersection(roi, gauges) %>%
+    as_tibble() %>%
+    select(gauge_id, gauge_name, ID)
+
+  df.basins <- df %>%
+    left_join(inter, by = "ID") %>%
+    filter(!is.na(gauge_id), !is.na(Q_obs_m3s))
+
+  if (single_gauge) {
+    df.basins <- df.basins %>% filter(gauge_id == ID)
+  }
+  area <- read_domain_area(domain_path, config_name)
+  df.basins <- df.basins %>% mutate(Q_sim_m3s = 60*60*24*Q_sim_m3s/(area*1000))
+
+  p1 <- df.basins %>%
+    pivot_longer(cols = starts_with("Q"), names_sep = "_", names_to = c("var", "source", "unit")) %>%
+    mutate(var = str_c(var, "_", unit)) %>%
+    select(gauge_id, gauge_name, ID, date, var, source, value) %>%
+    pivot_wider(names_from = var, values_from = value) %>%
+    filter(source == "sim") %>%
+    ggplot(aes(x = Q_mm, y = Q_m3s)) +
+    facet_wrap(. ~ gauge_name, ncol = 3, scales = "free") +
+    geom_point() +
+    ggpubr::stat_cor() +
+    labs(y = "Q with routing [mm]", x = "Q without routing [mm]") +
+    ggtitle("Daily streamflow")
+
+  df.basins.month <- df.basins %>%
+    mutate(date = floor_date(date, "month")) %>%
+    group_by(gauge_id, gauge_name, ID, date) %>%
+    summarise(count = n(),
+              Q_obs_mm = sum(Q_obs_mm),
+              Q_sim_mm = sum(Q_sim_mm),
+              Q_obs_m3s = mean(Q_obs_m3s),
+              Q_sim_m3s = sum(Q_sim_m3s),
+              .groups = "drop")
+
+  p2 <- df.basins.month %>%
+    filter(count > 28) %>%
+    pivot_longer(cols = starts_with("Q"), names_sep = "_", names_to = c("var", "source", "unit")) %>%
+    mutate(var = str_c(var, "_", unit)) %>%
+    select(gauge_id, gauge_name, ID, date, var, source, value) %>%
+    pivot_wider(names_from = var, values_from = value) %>%
+    filter(source == "sim") %>%
+    ggplot(aes(x = Q_mm, y = Q_m3s)) +
+    facet_wrap(. ~ gauge_name, ncol = 3, scales = "free") +
+    geom_point() +
+    ggpubr::stat_cor() +
+    labs(y = "Q with routing [mm]", x = "Q without routing [mm]") +
+    ggtitle("Monthly streamflow")
+
+  p.streamflow <- ggpubr::ggarrange(p1, p2, ncol = 1, labels = c("a", "b"))
+  ggsave(filename = file.path(out_figs, plot_name), plot = p.streamflow, width = 12, height = 8)
 }
