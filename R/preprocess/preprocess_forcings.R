@@ -466,6 +466,7 @@ preprocess_lc_data = function(domain_path, remove_temp = FALSE,
   library(terra)
   library(sf)
   library(yaml)
+  browser()
   # leer archivo de configuracion json con rutas de archivos
   config_path <- file.path(domain_path, config_name)
   config <- read_yaml(config_path)
@@ -500,7 +501,7 @@ preprocess_lc_data = function(domain_path, remove_temp = FALSE,
   box = get_extent(roi)
   
   # Crear buffer de 4km (4000 metros)
-  roi_buff <- st_buffer(box, dist = 4000)
+  roi_buff <- st_buffer(box, dist = 0.01)
 
   # Step 1: Load LC raster and optionally clip to ROI
   lc <- rast(raster_path)

@@ -6,39 +6,28 @@ library(yaml)
 source("R/utils.r")
 
 # set the path for the domain
-domain_path = "../domain_12622001"
-config_name = "preprocess_config_calib.yaml"
-
-# visualizar todos los outputs y forcings de un dominio
+domain_path = "../domain_zone_5"
+config_name = "preprocess_config_default.yaml"
 out.img = file.path(domain_path, "FIGS/annual_output_default.png")
 dir.create(file.path(domain_path, "FIGS"))
-calculate_annual_mean(domain_path, mask_roi = TRUE, config_name = config_name)
 
 # extraer y escribir un archivo nc de una variable
 variables = c("snowpack","SM_Lall","satSTW","aET","Q",
-              "SM_L01","SM_L02","SM_L03","SM_L04","SM_L05","SM_L06")
-for (j in c(1:11)){
+              "SWC_L01","SWC_L02","SWC_L03","SWC_L04","SWC_L05","SWC_L06")
+for (j in c(6:11)){
   print(variables[j])
   write_output(domain_path, var_name = variables[j], ts = "month", roi_mask = TRUE, config_name = config_name)
 }
 
-# # Procesar todas las zonas
-# for (i in 1:7){
-#   domain_path = paste0("../domain_zone_",i)
-#   print(domain_path)
-#   for (j in 1:11){
-#     variables = c("snowpack","SM_Lall","satSTW","aET","Q",
-#                   "SM_L01","SM_L02","SM_L03","SM_L04","SM_L05","SM_L06")
-#     print(variables[j])
-#     write_output(domain_path, var_name = variables[j], ts = "month", roi_mask = TRUE)
-#   }
-# }
+var.clim = c("pre","pet")
+for (j in c(1:2)){
+  print(var.clim[j])
+  write_clim(domain_path, var_name = var.clim[j], ts = "month", roi_mask = TRUE, config_name = config_name)
+}
 
-# # lista de dominios
-# domain_folders = dir(pattern = "domain_zone", full.names = TRUE)
-# domain_folders
-# # Mosaic outputs across domains
-# mosaic_outputs(domain_folders)
+# visualizar todos los outputs y forcings de un dominio
+calculate_annual_mean(domain_path, mask_roi = TRUE, config_name = config_name, process.clim = TRUE)
+visualize_annual_mean(domain_path, mask_roi = TRUE, config_name = config_name, png_filename = out.img)
 
 # Extract gridded runoff values (mm) and routing generated runoff (m3/s)
 config_path <- file.path(domain_path, config_name)
@@ -61,41 +50,6 @@ print(gauges_time_range)
 df.full = df.mm %>% full_join(df, by = c("ID","date"), suffix = c("_mm","_m3s"))
 dir.create(file.path(domain_path, config$out_folder,"streamflow"))
 df.full %>% write_csv(file.path(domain_path, config$out_folder, "streamflow","streamflow_data.csv"))
-
-# # running for all the zones at once
-# for (i in 7:7){
-#   domain_path = paste0("../domain_zone_",i)
-#   config_path <- file.path(domain_path, "preprocess_config.yaml")
-#   config = read_yaml(config_path)
-#   df.mm <- get_qmm_table(domain_path, crop_to_roi = TRUE)
-#   discharge = file.path(domain_path, config$out_folder, "discharge.nc")
-#   df <- get_qm3s_table(discharge)
-#   df.full = df.mm %>% full_join(df, by = c("ID","date"), suffix = c("_mm","_m3s"))
-#   df.full %>% filter(!is.na(Q_obs_mm))
-#   dir.create(file.path(domain_path, config$out_folder,"streamflow"))
-#   df.full %>% write_csv(file.path(domain_path, config$out_folder, "streamflow","streamflow_data.csv"))
-# }
-
-# visualization!
-# for (i in 7:7){
-#   # i=1
-#   domain_path = paste0("../domain_zone_",i)
-#   config_path <- file.path(domain_path, "preprocess_config.yaml")
-#   config = read_yaml(config_path)
-#   discharge = file.path(domain_path, config$out_folder, "discharge.nc")
-#   df <- get_qm3s_table(discharge)
-#   df %>% group_by(ID) %>% 
-#     filter(!is.na(Q_obs)) %>% 
-#     filter(date >= "1980-01-01") %>% 
-#     summarise(start = min(date),
-#               end = max(date)) %>% 
-#     mutate(years = (as.numeric(end-start)/365)) %>% 
-#     # ungroup() %>% 
-#     arrange(desc(years)) %>% 
-#     filter(ID == 2112006)
-#   df %>% filter(!is.na(Q_obs)) %>% 
-#     filter(ID == 1021001)
-# }
 
 # # extract single variable from mhm output
 # df.q = extract_roi_timeseries("domain_zone_4/OUT/mHM_Fluxes_States.nc", var_name = "Q", roi_file = basin)

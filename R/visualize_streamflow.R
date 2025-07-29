@@ -66,8 +66,11 @@ plot_metrics_maps <- function(metrics, map_file, out_figs,
                               r2_threshold = NULL, 
                               kge_threshold = NULL) {
   # Convert metrics to sf
+  # browser()
+  dates_raw = str_sub(names(rast(map_file)), start = 2) 
+  dates_vec = as.Date(paste0(dates_raw, ".01"), format = "%Y.%m.%d")
   metrics_sp <- metrics %>% st_as_sf(coords = c("LON", "LAT"), crs = 4326)
-  r <- rast(map_file) %>% annual_mean(fun = "sum")
+  r <- rast(map_file) %>% annual_mean(fun = "sum", dates_vector = dates_vec)
   
   # Filtrar según thresholds si están definidos
   metrics_r2 <- metrics_sp
@@ -166,6 +169,7 @@ plot_streamflow_comparison <- function(df, out_figs, plot_name = "streamflow_wit
 }
 
 plot_basin_streamflow_comparison <- function(df, config, out_figs, basins, single_gauge = TRUE, plot_name = "simulated_streamflow_routing_by_basin.png") {
+  # browser()
   camels <- read_sf("../DATA/SHP/Cuencas_CAMELS/CAMELS_CL_v202201/camels_cl_boundaries/camels_cl_boundaries.shp")
   gauges_file <- config$fluv_station_file
   gauges <- read_sf(gauges_file)
@@ -183,7 +187,8 @@ plot_basin_streamflow_comparison <- function(df, config, out_figs, basins, singl
   if (single_gauge) {
     df.basins <- df.basins %>% filter(gauge_id == ID)
   }
-  
+  area = read_domain_area(domain_path, config_name) 
+  df.basins = df.basins %>%  mutate(Q_sim_m3s = 60*60*24*Q_sim_m3s/(area*1000))
   p1 <- df.basins %>% 
     pivot_longer(cols = starts_with("Q"), names_sep = "_", names_to = c("var", "source", "unit")) %>% 
     mutate(var = str_c(var, "_", unit)) %>% 
@@ -194,7 +199,7 @@ plot_basin_streamflow_comparison <- function(df, config, out_figs, basins, singl
     facet_wrap(. ~ gauge_name, ncol = 3, scales = "free") +
     geom_point() +
     ggpubr::stat_cor() +
-    labs(y = "Q with routing (m3/s)", x = "Q without routing (mm)") +
+    labs(y = "Q with routing [mm]", x = "Q without routing [mm]") +
     ggtitle("Daily streamflow")
   
   df.basins.month <- df.basins %>% 
@@ -204,7 +209,7 @@ plot_basin_streamflow_comparison <- function(df, config, out_figs, basins, singl
               Q_obs_mm = sum(Q_obs_mm),
               Q_sim_mm = sum(Q_sim_mm),
               Q_obs_m3s = mean(Q_obs_m3s),
-              Q_sim_m3s = mean(Q_sim_m3s),
+              Q_sim_m3s = sum(Q_sim_m3s),
               .groups = "drop")
   
   p2 <- df.basins.month %>% 
@@ -218,7 +223,7 @@ plot_basin_streamflow_comparison <- function(df, config, out_figs, basins, singl
     facet_wrap(. ~ gauge_name, ncol = 3, scales = "free") +
     geom_point() +
     ggpubr::stat_cor() +
-    labs(y = "Q with routing (m3/s)", x = "Q without routing (mm)") +
+    labs(y = "Q with routing [mm]", x = "Q without routing [mm]") +
     ggtitle("Monthly streamflow")
   
   p.streamflow <- ggpubr::ggarrange(p1, p2, ncol = 1, labels = c("a", "b"))
@@ -230,12 +235,12 @@ plot_basin_streamflow_comparison <- function(df, config, out_figs, basins, singl
 # ============================
 
 use_multiple_domains <- FALSE
-domain_path <- "../domain_11337001"
+domain_path <- "../domain_7339001"
 start_date <- as.Date("1980-01-01")
 end_date <- as.Date("2020-12-31")
-av_threshold <- 0
-suffix = "_calib"
-config_name = "preprocess_config_calib.yaml"
+av_threshold <- 50
+suffix = "_default"
+config_name = "preprocess_config_default.yaml"
 
 # ============================
 # WORKFLOW PRINCIPAL
@@ -243,10 +248,12 @@ config_name = "preprocess_config_calib.yaml"
 
 main <- function() {
   library(ggpubr)
+  # browser()
   res <- read_and_merge_streamflow(config_name)
   df <- res$df
   config <- res$config
-  
+  # area = read_domain_area(domain_path, config_name)
+  # df %>% mutate(qsim_route = 60*60*24*Q_sim_m3s/(area*1000))
   paths <- setup_output_paths(config)
   out_figs <- paths$out_figs
   out_folder <- paths$out_folder
@@ -254,10 +261,10 @@ main <- function() {
   
   metrics <- calculate_metrics(df, config, out_folder)
   metrics
-  plot_metrics_maps(metrics, map_file, out_figs, 
-                    plot_name = paste0("only_valid_gauge_metrics",suffix,".png"),
-                    r2_threshold = 0,
-                    kge_threshold = 0)
+  # plot_metrics_maps(metrics, map_file, out_figs, 
+  #                   plot_name = paste0("only_valid_gauge_metrics",suffix,".png"),
+  #                   r2_threshold = 0,
+  #                   kge_threshold = 0)
   plot_metrics_maps(metrics, map_file, out_figs, 
                     plot_name = paste0("gauge_metrics",suffix,".png"))
   plot_metrics_boxplot(metrics, "r2", out_figs, plot_name = paste0("boxplot_r2",suffix,".png"))
@@ -266,7 +273,7 @@ main <- function() {
   plot_cdf(metrics, "kge", out_figs, plot_name = paste0("cdf_kge",suffix,".png"))
   plot_streamflow_comparison(df, out_figs, plot_name = paste0("streamflow_comparison",suffix,".png"))
   
-  basins <- c(9414001, 11337001, 7339001)
+  basins <- c(9414001, 11337001, 7339001, 5710001)
   plot_basin_streamflow_comparison(df, config, out_figs, basins, single_gauge = TRUE, 
                                    plot_name = paste0("streamflow_basin",suffix,".png"))
 }

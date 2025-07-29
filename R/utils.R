@@ -487,170 +487,67 @@ write_output <- function(domain_path, var_name, ts,
   invisible(paths)
 }
 
-#' Visualize annual mean model outputs and forcings
-#'
-#' Reads the standard mHM NetCDF outputs together with precipitation and
-#' potential evapotranspiration forcings and displays the long term annual means
-#' in a 2x5 panel plot.
-#'
-#' @param domain_path Path to the model domain containing the `OUT` and `meteo`
-#'   folders.
-#' @param mask_roi Logical. If `TRUE`, the outputs are masked using the
-#'   `roi_file` specified in `preprocess_config.yaml` located inside
-#'   `domain_path` or the file provided via `roi_file`.
-#' @param roi_file Optional path to a ROI file. When supplied, the outputs are
-#'   cropped and masked to this ROI instead of the one defined in the
-#'   configuration file.
-#' @param out_folder Folder where to save the output PNG figure. If `NULL`,
-#'   defaults to "/Volumes/KINGSTON/FONDECYT_CAMILA/mHM_CL/FIGS".
-#' @export
-visualize_annual_outputs <- function(domain_path, mask_roi = FALSE,
-                                     roi_file = NULL, filename = NULL,
-                                     out_folder = NULL, res_folder = NULL,
-                                     config_name = "preprocess_config.yaml") {
-  library(terra)
-  library(yaml)
+write_clim = function(domain_path, var_name, ts,
+                      roi_mask = TRUE, roi_file = NULL,
+                      out.format = c("tif", "nc"),
+                      config_name = "preprocess_config.yaml"){
+  out.format <- match.arg(out.format)
+  ts <- match.arg(tolower(ts), c("month", "year"))
   
-  # Internal function for annual mean
-  annual_mean <- function(r, fun = "mean") {
-    if (is.character(time(r))) {
-      time(r) <- as.POSIXct(time(r), origin = "1970-01-01")
-    }
-    years <- format(time(r), "%Y")
-    r_ann <- tapp(r, years, fun = fun, na.rm = TRUE)
-    terra::mean(r_ann, na.rm = TRUE)
+  config_path <- file.path(domain_path, config_name)
+  if (!file.exists(config_path)) {
+    stop("Configuration file not found: ", config_path)
+  }
+  config <- read_yaml(config_path)
+  
+  out_folder <- config$out_folder
+  meteo_folder = config$meteo_folder
+  
+  
+  nc_path <- file.path(domain_path, meteo_folder, paste0(var_name, ".nc"))
+  if (!file.exists(nc_path)) {
+    stop("NetCDF not found: ", nc_path)
   }
   
-  roi <- NULL
-  if (!is.null(roi_file)) {
+  r <- rast(nc_path, subds = var_name)
+  
+  if (roi_mask) {
+    if (is.null(roi_file)) {
+      roi_file <- config$roi_file
+    }
     if (!file.exists(roi_file)) {
       stop("ROI file not found: ", roi_file)
     }
     roi <- vect(roi_file)
-  } else if (mask_roi) {
-    config_path <- file.path(domain_path, config_name)
-    if (!file.exists(config_path)) {
-      stop("Configuration file not found: ", config_path)
+    r <- mask(r, roi)
+  }
+  
+  if (ts == "month") {
+    if (var_name %in% c("pre","pet")){
+      r <- daily_to_monthly(r, fun = "sum")
+    }else{
+      r <- daily_to_monthly(r, fun = "mean")
     }
-    config <- yaml::read_yaml(config_path)
-    roi_path <- config$roi_file
-    if (!grepl("^(/|[A-Za-z]:)", roi_path)) {
-      roi_path <- file.path(domain_path, roi_path)
-    }
-    if (!file.exists(roi_path)) {
-      stop("ROI file not found: ", roi_path)
-    }
-    roi <- vect(roi_path)
+  } else if (ts == "year") {
+    r <- monthly_to_yearly(r, fun = "mean")
   }
   
-  # Read datasets
-  if (is.null(res_folder)){
-    res_folder = config$out_folder
-    res_file <- file.path(domain_path, res_folder, "mHM_Fluxes_States.nc")
-  }else{
-    res_file <- file.path(domain_path, res_folder, "mHM_Fluxes_States.nc")
-  }
-  meteo_folder <- file.path(domain_path, config$meteo_folder)
+  out_dir <- file.path(domain_path, out_folder, var_name)
+  dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
   
-  cat("reading results in", res_file)
-  
-  snowpack <- rast(res_file, subds = "snowpack")
-  soilmoist <- rast(res_file, subds = "SM_Lall")
-  satstw <- rast(res_file, subds = "satSTW")
-  aet <- rast(res_file, subds = "aET")
-  runoff <- rast(res_file, subds = "Q")
-  
-  pre <- rast(file.path(meteo_folder, "pre.nc"), subds = "pre")
-  pet <- rast(file.path(meteo_folder, "pet.nc"), subds = "pet")
-  
-  # Process layers
-  message("Processing precipitation")
-  pre_ann <- annual_mean(pre, "sum")
-  message("Processing potential evapotranspiration")
-  pet_ann <- annual_mean(pet, "sum")
-  message("Processing actual evapotranspiration")
-  aet_ann <- annual_mean(aet, "sum")
-  message("Processing runoff")
-  runoff_ann <- annual_mean(runoff, "sum")
-  
-  message("Processing soil moisture")
-  sm_ann <- annual_mean(soilmoist, "mean")
-  message("Processing snowpack")
-  snow_ann <- annual_mean(snowpack, "mean")
-  message("Processing groundwater level")
-  sat_ann <- annual_mean(satstw, "mean")
-  
-  # Crop and mask if ROI is provided
-  if (!is.null(roi)) {
-    pre_ann <- crop(pre_ann, roi) |> mask(roi)
-    pet_ann <- crop(pet_ann, roi) |> mask(roi)
-    aet_ann <- crop(aet_ann, roi) |> mask(roi)
-    runoff_ann <- crop(runoff_ann, roi) |> mask(roi)
-    sm_ann <- crop(sm_ann, roi) |> mask(roi)
-    snow_ann <- crop(snow_ann, roi) |> mask(roi)
-    sat_ann <- crop(sat_ann, roi) |> mask(roi)
+  if (out.format == "tif") {
+    fname <- file.path(out_dir, paste0(var_name,"_",ts,".tif"))
+    writeRaster(r, fname, overwrite = TRUE)
+    paths <- fname
+    paths <- vector("character", nlyr(r))
+  } else {
+    fname <- file.path(out_dir, paste0(var_name,"_",ts,".nc"))
+    writeCDF(r, filename = fname, varname = var_name, overwrite = TRUE)
+    paths <- fname
   }
   
-  disp_ann <- pre_ann - aet_ann
-  
-  flux_range <- range(c(values(pre_ann), values(pet_ann),
-                        values(aet_ann), values(runoff_ann),
-                        values(disp_ann)), na.rm = TRUE)
-  
-  state_range <- range(c(values(snow_ann), values(sm_ann), values(sat_ann)),
-                       na.rm = TRUE)
-  
-  # Save PNG
-  png_filename <- filename
-  png(png_filename, width = 2000, height = 1000, res = 150)
-  
-  par(mfrow = c(2, 5), mar = c(4, 4, 2, 5))
-  
-  plot(pre_ann, main = "Precipitation", zlim = flux_range)
-  plot(pet_ann, main = "Potential ET", zlim = flux_range)
-  plot(aet_ann, main = "Actual ET", zlim = flux_range)
-  plot(runoff_ann, main = "Runoff", zlim = flux_range)
-  plot(disp_ann, main = "Pr - ET", zlim = flux_range)
-  
-  plot(sm_ann, main = "Soil Moisture", zlim = state_range)
-  plot(snow_ann, main = "Snowpack", zlim = state_range)
-  plot(sat_ann, main = "GW Level", zlim = state_range)
-  plot.new()
-  text(0.5, 0.5, "Summary Map", cex = 1.2)
-  
-  dev.off()
-  message("Figure saved to: ", png_filename)
-  
-  # Plot to screen if interactive
-  if (interactive()) {
-    par(mfrow = c(2, 5), mar = c(4, 4, 2, 5))
-    
-    plot(pre_ann, main = "Precipitation", zlim = flux_range)
-    plot(pet_ann, main = "Potential ET", zlim = flux_range)
-    plot(aet_ann, main = "Actual ET", zlim = flux_range)
-    plot(runoff_ann, main = "Runoff", zlim = flux_range)
-    plot(disp_ann, main = "Pr - ET", zlim = flux_range)
-    
-    plot(sm_ann, main = "Soil Moisture", zlim = state_range)
-    plot(snow_ann, main = "Snowpack", zlim = state_range)
-    plot(sat_ann, main = "GW Level", zlim = state_range)
-    plot.new()
-    text(0.5, 0.5, "Summary Map", cex = 1.2)
-  }
-  
-  invisible(list(
-    pre = pre_ann,
-    pet = pet_ann,
-    aet = aet_ann,
-    runoff = runoff_ann,
-    disp = disp_ann,
-    sm = sm_ann,
-    snow = snow_ann,
-    sat = sat_ann
-  ))
+  invisible(paths)
 }
-
-
 
 #' Get plotting limits for a raster
 #'
@@ -777,7 +674,6 @@ get_qmm_table <- function(domain_path, crop_to_roi = TRUE,
   # === Read Q simulation from NetCDF ===
   nc <- rast(nc_path, subds = "Q")
   names(nc) <- as.character(time(nc))  # Assign date names to layers
-  
   
   basins = "/Volumes/KINGSTON/FONDECYT_CAMILA/mHM_CL/DATA/SHP/Cuencas_CAMELS/CAMELS_CL_v202201/camels_cl_boundaries/camels_cl_boundaries.shp"
   basins = read_sf(basins)
@@ -1038,7 +934,7 @@ plot_metric_map <- function(rast, metrics_sf, metric = "kge", metric_name = NULL
   return(p)
 }
 
-streamflow_data_range <- function(df, id = NULL) {
+streamflow_data_range <- function(df = NULL, id = NULL) {
   if (is.null(df)){
     df = read_csv("/Volumes/KINGSTON/FONDECYT_CAMILA/mHM_CL/DATA/SHP/Cuencas_CAMELS/CAMELS_CL_v202201/q_m3s_day.csv")
   }
@@ -1050,7 +946,6 @@ streamflow_data_range <- function(df, id = NULL) {
               end = max(date),
               years = n/365)
 }
-
 
 #' Calculate and store annual mean rasters for key hydrological variables
 #'
@@ -1064,18 +959,20 @@ streamflow_data_range <- function(df, id = NULL) {
 #' @param config_name Configuration filename (default: preprocess_config.yaml).
 #' @export
 calculate_annual_mean <- function(domain_path, mask_roi = FALSE, roi_file = NULL,
-                                  config_name = "preprocess_config.yaml") {
+                                  config_name = "preprocess_config.yaml", process.clim = TRUE,
+                                  variables = c("pre", "pet", "snowpack", "SM_Lall", "satSTW", "aET", "Q",
+                                                "SWC_L01", "SWC_L02", "SWC_L03", "SWC_L04", "SWC_L05", "SWC_L06")
+) {
   library(terra)
   library(yaml)
   library(lubridate)
-  # browser()
-  variables <- c("snowpack", "SM_Lall", "satSTW", "aET", "Q",
-                 "SM_L01", "SM_L02", "SM_L03", "SM_L04", "SM_L05", "SM_L06")
   
   config_path <- file.path(domain_path, config_name)
   config <- yaml::read_yaml(config_path)
   out_folder <- config$out_folder
   res_file <- file.path(domain_path, out_folder, "mHM_Fluxes_States.nc")
+  meteo_folder <- config$meteo_folder
+  clim_file <- file.path(domain_path, meteo_folder, "pre.nc")
   
   roi <- NULL
   if (!is.null(roi_file)) {
@@ -1092,49 +989,53 @@ calculate_annual_mean <- function(domain_path, mask_roi = FALSE, roi_file = NULL
   dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
   
   for (v in variables) {
-    tif_path <- file.path(domain_path, out_folder, v, paste0(v, "_month.tif"))
+    if (!process.clim && v %in% c("pre", "pet")) next
     
+    tif_path <- file.path(domain_path, out_folder, v, paste0(v, "_month.tif"))
     r <- NULL
     dates_vector <- NULL
     
     if (file.exists(tif_path)) {
+      message("Raster ", basename(tif_path), " exists. Creating annual mean from monthly values")
       r <- rast(tif_path)
       tvec <- time(r)
+      
       if (is.null(tvec) || all(is.na(tvec))) {
-        message("Raster ", v, "_month.tif has empty or NA time. Recovering from NC...")
-        r_nc <- try(rast(res_file, subds = v), silent = TRUE)
+        message("Raster ", basename(tif_path), " has empty or NA time. Recovering from NC...")
+        src_file <- if (v %in% c("pre", "pet")) clim_file else res_file
+        r_nc <- try(rast(src_file, subds = v), silent = TRUE)
         if (inherits(r_nc, "try-error")) {
           warning("Variable ", v, " not found in NC for fallback.")
           next
         }
-        tvec_nc <- time(r_nc)
-        tvec_nc <- unique(floor_date(tvec_nc, "month"))
-        dates_vector <- tvec_nc
+        dates_vector <- unique(floor_date(time(r_nc), "month"))
       }
     } else {
-      message("Reading ", v, " directly from mHM_Fluxes_States.nc")
-      r <- try(rast(res_file, subds = v), silent = TRUE)
+      message("Raster ", v, "_month.tif does not exist. Reading from NetCDF...")
+      src_file <- if (v %in% c("pre", "pet")) file.path(domain_path, meteo_folder, paste0(v, ".nc")) else res_file
+      r <- try(rast(src_file, subds = v), silent = TRUE)
       if (inherits(r, "try-error")) {
         warning("Variable ", v, " not found in sources.")
         next
       }
     }
     
-    fun <- if (v %in% c("snowpack", "SM_Lall", "satSTW",
-                        "SM_L01", "SM_L02", "SM_L03", "SM_L04", "SM_L05", "SM_L06")) "mean" else "sum"
+    fun <- if (v %in% c("snowpack", "SM_Lall", "satSTW", 
+                        "SWC_L01", "SWC_L02", "SWC_L03", "SWC_L04", "SWC_L05", "SWC_L06")) "mean" else "sum"
     
-    # Llamada robusta a annual_mean considerando dates_vector
     r_ann <- annual_mean(r, fun = fun, dates_vector = dates_vector)
     
     if (!is.null(roi)) {
       r_ann <- crop(r_ann, roi) |> mask(roi)
     }
     
+    names(r_ann) <- v
     out_file <- file.path(out_dir, paste0(v, "_annual_mean.tif"))
     writeRaster(r_ann, out_file, overwrite = TRUE)
     message("Saved annual mean for ", v, " at ", out_file)
   }
 }
+
 
 
 #' Visualize annual mean rasters as 2x5 panel figure
@@ -1149,15 +1050,17 @@ calculate_annual_mean <- function(domain_path, mask_roi = FALSE, roi_file = NULL
 #' @param config_name Configuration filename (default: preprocess_config.yaml).
 #' @export
 visualize_annual_mean <- function(domain_path, mask_roi = FALSE, roi_file = NULL,
-                                  png_filename = NULL, config_name = "preprocess_config.yaml") {
+                                  png_filename = NULL, config_name = "preprocess_config.yaml",
+                                  variables = c("pre", "pet", "snowpack", "SM_Lall", "satSTW", "aET", "Q",
+                                                "SWC_L01", "SWC_L02", "SWC_L03", "SWC_L04", "SWC_L05", "SWC_L06")
+) {
   library(terra)
   library(yaml)
-  
-  variables <- c("snowpack", "SM_Lall", "satSTW", "aET", "Q")
+  # browser()
   config_path <- file.path(domain_path, config_name)
   config <- yaml::read_yaml(config_path)
   out_folder <- config$out_folder
-  meteo_folder <- file.path(domain_path, config$meteo_folder)
+  ann_dir <- file.path(domain_path, out_folder, "annual_mean")
   
   roi <- NULL
   if (!is.null(roi_file)) {
@@ -1170,20 +1073,8 @@ visualize_annual_mean <- function(domain_path, mask_roi = FALSE, roi_file = NULL
     roi <- vect(roi_path)
   }
   
-  ann_dir <- file.path(domain_path, out_folder, "annual_mean")
-  
-  pre <- rast(file.path(meteo_folder, "pre.nc"), subds = "pre")
-  pet <- rast(file.path(meteo_folder, "pet.nc"), subds = "pet")
-  
-  pre_ann <- annual_mean(pre, "sum")
-  pet_ann <- annual_mean(pet, "sum")
-  
-  if (!is.null(roi)) {
-    pre_ann <- crop(pre_ann, roi) |> mask(roi)
-    pet_ann <- crop(pet_ann, roi) |> mask(roi)
-  }
-  
   ann_rasters <- list()
+  
   for (v in variables) {
     tif_path <- file.path(ann_dir, paste0(v, "_annual_mean.tif"))
     if (file.exists(tif_path)) {
@@ -1197,31 +1088,56 @@ visualize_annual_mean <- function(domain_path, mask_roi = FALSE, roi_file = NULL
     }
   }
   
-  disp_ann <- pre_ann - ann_rasters[["aET"]]
-  
-  flux_range <- range(c(values(pre_ann), values(pet_ann),
+  # Derived variables
+  disp_ann <- ann_rasters[["pre"]] - ann_rasters[["aET"]]
+  # ann_rasters[["SWC_total"]] <- Reduce(`+`, ann_rasters[grep("^SWC_L", names(ann_rasters))])
+  ann_rasters[["SWC_total"]] <-  ann_rasters[["SWC_L01"]] + ann_rasters[["SWC_L02"]] + ann_rasters[["SWC_L03"]] +
+    ann_rasters[["SWC_L04"]] + ann_rasters[["SWC_L05"]] + ann_rasters[["SWC_L06"]]
+  flux_range <- range(c(values(ann_rasters[["pre"]]), values(ann_rasters[["pet"]]),
                         values(ann_rasters[["aET"]]), values(ann_rasters[["Q"]]),
                         values(disp_ann)), na.rm = TRUE)
   
-  state_range <- range(c(values(ann_rasters[["SM_Lall"]]),
+  state_range <- range(c(values(ann_rasters[["SWC_total"]]),
                          values(ann_rasters[["snowpack"]]),
                          values(ann_rasters[["satSTW"]])), na.rm = TRUE)
   
+  # Plot
   png(png_filename, width = 2000, height = 1000, res = 150)
   par(mfrow = c(2,5), mar = c(4,4,2,5))
   
-  plot(pre_ann, main = "Precipitation", zlim = flux_range)
-  plot(pet_ann, main = "Potential ET", zlim = flux_range)
+  plot(ann_rasters[["pre"]], main = "Precipitation", zlim = flux_range)
+  plot(ann_rasters[["pet"]], main = "Potential ET", zlim = flux_range)
   plot(ann_rasters[["aET"]], main = "Actual ET", zlim = flux_range)
   plot(ann_rasters[["Q"]], main = "Runoff", zlim = flux_range)
   plot(disp_ann, main = "Pr - ET", zlim = flux_range)
   
-  plot(ann_rasters[["SM_Lall"]], main = "Soil Moisture", zlim = state_range)
+  plot(ann_rasters[["SWC_total"]], main = "Soil Moisture", zlim = state_range)
   plot(ann_rasters[["snowpack"]], main = "Snowpack", zlim = state_range)
   plot(ann_rasters[["satSTW"]], main = "GW Level", zlim = state_range)
   plot.new()
-  text(0.5, 0.5, "Summary Map", cex = 1.2)
+  text(0.5, 0.5, "Summary Maps", cex = 1.2)
   
   dev.off()
   message("Figure saved to: ", png_filename)
+}
+
+
+read_domain_area = function(domain_path, config_name){
+  # === Load config and paths ===
+  config_path <- file.path(domain_path, config_name)
+  config <- read_yaml(config_path)
+  
+  # Read all lines of the file
+  file = file.path(domain_path, config$out_folder, "Configfile.log")
+  lines <- readLines(file)
+  
+  # Find the line that contains 'Total[km2]'
+  total_area_line <- grep("Total\\[km2\\]", lines, value = TRUE)
+  
+  # Extract the number using regular expressions
+  area <- as.numeric(sub(".*Total\\[km2\\]\\s+", "", total_area_line))
+  
+  # Print the result
+  print(area)
+  
 }
